@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: Apache-2.0.
+# Copyright (C) 2025-present ahrs-debug-rig project and contributors.
+
+.vscode/
+.idea/
+target/
+tmp/
+
+*.bin
+*.txt
+*.log
