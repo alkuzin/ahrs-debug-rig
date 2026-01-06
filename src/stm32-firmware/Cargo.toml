@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: Apache-2.0.
+# Copyright (C) 2025-present ahrs-debug-rig project and contributors.
+
+# Project package info section.
+[package]
+name        = "stm32-firmware"
+version     = "0.1.0"
+description = "STM32 firmware for debugging communication over SPI"
+authors     = ["Alexander <alkuzindev@gmail.com>"]
+repository  = "https://github.com/alkuzin/ahrs-debug-rig"
+license     = "Apache-2.0"
+edition     = "2024"
+
+# Project dependencies section.
+[dependencies]
+# Low level access to Cortex-M processors.
+cortex-m = "0.7"
+# Startup code and minimal runtime for Cortex-M microcontrollers.
+cortex-m-rt = "0.7"
+# Minimal and reusable non-blocking I/O layer.
+nb = "1.1"
+# Set the panicking behavior to halt.
+panic-halt = "1.0.0"
+# Multi device hardware abstraction on top of the peripheral access API
+# for the STMicro STM32F4 series microcontrollers.
+stm32f4xx-hal = { version = "0.23", features = ["stm32f401"] }
+
+# Project building settings during release.
+[profile.release]
+# Turn on maximum optimizations. STM32F401CCU6 has only 64 KB of flash memory.
+opt-level = 'z'
+# Link-time-optimizations (LTO) for further size reduction.
+lto = true
