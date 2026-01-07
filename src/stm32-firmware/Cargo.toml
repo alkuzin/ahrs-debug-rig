@@ -29,7 +29,7 @@ embedded-hal = "1.0.0"
 
 # Project building settings during release.
 [profile.release]
-# Turn on maximum optimizations. STM32F401CCU6 has only 64 KB of flash memory.
+# Turn on maximum optimizations. STM32F401CCU6 has only 256 KB of flash memory.
 opt-level = 'z'
 # Link-time-optimizations (LTO) for further size reduction.
 lto = true
