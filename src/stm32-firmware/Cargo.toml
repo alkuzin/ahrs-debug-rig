@@ -26,6 +26,9 @@ panic-halt = "1.0.0"
 stm32f4xx-hal = { version = "0.23", features = ["stm32f401"] }
 # A Hardware Abstraction Layer (HAL) for embedded systems.
 embedded-hal = "1.0.0"
+# Inertial Measurement Unit Data Transfer Protocol (IDTP) - network protocol
+# used for transferring IMU data.
+idtp = { git = "https://github.com/alkuzin/idtp" }
 
 # Project building settings during release.
 [profile.release]

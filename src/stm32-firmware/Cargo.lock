@@ -173,6 +173,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d758ba1b47b00caf47f24925c0074ecb20d6dfcffe7f6d53395c0465674841a"
 
 [[package]]
+name = "idtp"
+version = "0.1.0"
+source = "git+https://github.com/alkuzin/idtp#72e99fb8c7b983bac3bb529c342ee71fdbd3b19d"
+
+[[package]]
 name = "litrs"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -284,6 +289,7 @@ dependencies = [
  "cortex-m",
  "cortex-m-rt",
  "embedded-hal 1.0.0",
+ "idtp",
  "nb 1.1.0",
  "panic-halt",
  "stm32f4xx-hal",
