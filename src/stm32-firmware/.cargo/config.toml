@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0.
-# Copyright (C) 2025-present ahrs-debug-rig project and contributors.
+# Copyright (C) 2026-present ahrs-debug-rig project and contributors.
 
 [target.thumbv7em-none-eabihf]
 # Run before: openocd -f interface/stlink.cfg -f target/stm32f4x.cfg.
