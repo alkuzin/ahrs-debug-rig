@@ -4,9 +4,11 @@
 #![no_std]
 #![no_main]
 
+use stm32_firmware::{status::{LedStatus, Status}};
 use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
 use cortex_m_rt::entry;
 use panic_halt as _;
+
 
 #[entry]
 fn main() -> ! {
@@ -14,50 +16,30 @@ fn main() -> ! {
 
     let rcc_cfg = Config::hsi().sysclk(24.MHz());
     let mut rcc = dp.RCC.freeze(rcc_cfg);
-
     let mut timer = dp.TIM2.counter_ms(&mut rcc);
-
     let gpioa = dp.GPIOA.split(&mut rcc);
-    let gpioc = dp.GPIOC.split(&mut rcc);
 
-    let mut led_builtin  = gpioc.pc13.into_push_pull_output();
-    let mut led_status_r = gpioa.pa9.into_push_pull_output();
-    let mut led_status_g = gpioa.pa10.into_push_pull_output();
-    let mut led_status_b = gpioa.pa11.into_push_pull_output();
+    let mut led_status = LedStatus::new(
+        gpioa.pa9.into_push_pull_output(),
+        gpioa.pa10.into_push_pull_output(),
+        gpioa.pa11.into_push_pull_output(),
+        false
+    );
 
-    timer.start(200.millis()).unwrap();
+    // Wait 3 sec. for IMU sensors to initialize.
+    if let Err(_) = timer.start(3000.millis()) {
+        led_status.set_status(Status::Error);
+        loop {}
+    } 
 
-    for _ in 0..8 {
-        led_builtin.toggle();
-        nb::block!(timer.wait()).unwrap();
-    }
+    led_status.set_status(Status::SetupSuccess);
 
-    timer.start(500.millis()).unwrap();
+    if let Err(_) = nb::block!(timer.wait()) {
+        led_status.set_status(Status::Error);
+        loop {}
+    } 
 
     loop {
-        led_status_r.set_high();
-        led_status_g.set_low();
-        led_status_b.set_low();
-        nb::block!(timer.wait()).unwrap();
 
-        led_status_r.set_low();
-        led_status_g.set_high();
-        led_status_b.set_low();
-        nb::block!(timer.wait()).unwrap();
-
-        led_status_r.set_low();
-        led_status_g.set_low();
-        led_status_b.set_high();
-        nb::block!(timer.wait()).unwrap();
-
-        led_status_r.set_high();
-        led_status_g.set_high();
-        led_status_b.set_high();
-        nb::block!(timer.wait()).unwrap();
-
-        led_status_r.set_low();
-        led_status_g.set_low();
-        led_status_b.set_low();
-        nb::block!(timer.wait()).unwrap();
     }
 }

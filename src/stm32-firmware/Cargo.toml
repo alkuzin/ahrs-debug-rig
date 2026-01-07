@@ -24,6 +24,8 @@ panic-halt = "1.0.0"
 # Multi device hardware abstraction on top of the peripheral access API
 # for the STMicro STM32F4 series microcontrollers.
 stm32f4xx-hal = { version = "0.23", features = ["stm32f401"] }
+# A Hardware Abstraction Layer (HAL) for embedded systems.
+embedded-hal = "1.0.0"
 
 # Project building settings during release.
 [profile.release]
