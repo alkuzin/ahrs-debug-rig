@@ -4,7 +4,7 @@
 #![no_std]
 #![no_main]
 
-use stm32_firmware::{status::{LedStatus, Status}};
+use stm32_firmware::{status::{LedStatus, Status}, payload::Payload, utils};
 use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
 use cortex_m_rt::entry;
 use panic_halt as _;
@@ -37,9 +37,14 @@ fn main() -> ! {
     if let Err(_) = nb::block!(timer.wait()) {
         led_status.set_status(Status::Error);
         loop {}
-    } 
+    }
+
+    const RNG_INITIAL_STATE: u32 = 0xABCDEF12;
 
     loop {
+        led_status.set_status(Status::Reset);
 
+        let _payload = utils::generate_payload(RNG_INITIAL_STATE);
+        led_status.set_status(Status::ImuSuccess);
     }
 }
