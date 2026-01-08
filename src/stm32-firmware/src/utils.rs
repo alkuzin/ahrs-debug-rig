@@ -3,8 +3,8 @@
 
 //! Utilities for IMU handler firmware.
 
-use core::ops::Range;
 use crate::payload::Payload;
+use core::ops::Range;
 
 /// Pseudo-random numbers generator.
 ///
@@ -74,7 +74,7 @@ const RNG_BARO_RANGE: Range<f32> = 95000.0..105000.0; // ~1 atm.
 /// # Returns
 /// - New generated payload.
 pub fn generate_payload(state: u32) -> Payload {
-    let mut rng     = Rng::new(state);
+    let mut rng = Rng::new(state);
     let mut payload = Payload::default();
 
     payload.acc1_x = rng.next_f32(RNG_ACC_RANGE);
@@ -157,5 +157,7 @@ pub fn calculate_checksum(buffer: &[u8]) -> u16 {
 /// Halt the CPU after a fatal error.
 pub fn halt_cpu() {
     cortex_m::interrupt::disable();
-    loop { cortex_m::asm::wfi(); }
+    loop {
+        cortex_m::asm::wfi();
+    }
 }

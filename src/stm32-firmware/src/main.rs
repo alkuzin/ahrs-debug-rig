@@ -6,13 +6,12 @@
 #![no_std]
 #![no_main]
 
-use stm32_firmware::{SystemConfig, SystemContext};
-use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
-use embedded_hal::spi::MODE_0;
 use cortex_m_rt::entry;
+use embedded_hal::spi::MODE_0;
 use idtp::Mode;
 use panic_halt as _;
-
+use stm32_firmware::{SystemConfig, SystemContext};
+use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
 
 #[entry]
 fn main() -> ! {

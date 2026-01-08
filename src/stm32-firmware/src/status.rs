@@ -20,7 +20,7 @@ pub enum Status {
 }
 
 /// RGB LED status handling struct.
-pub struct LedStatus <R, G, B> {
+pub struct LedStatus<R, G, B> {
     /// Red LED pin.
     led_r: R,
     /// Green LED pin.
@@ -44,16 +44,21 @@ where
     /// - `led_g` - given green LED pin.
     /// - `led_b` - given blue LED pin.
     /// - `is_common_anode` - given flag whether RGB LED has common anode
-    /// or common cathode.
+    ///   or common cathode.
     ///
     /// # Returns
     /// - New `LedStatus` object.
     pub fn new(led_r: R, led_g: G, led_b: B, is_common_anode: bool) -> Self {
-        Self { led_r, led_g, led_b, is_common_anode }
+        Self {
+            led_r,
+            led_g,
+            led_b,
+            is_common_anode,
+        }
     }
 
     /// Set RGB LED state.
-    /// 
+    ///
     /// # Parameters
     /// - `r` - given flag whether to set high red LED.
     /// - `g` - given flag whether to set high green LED.
@@ -61,14 +66,25 @@ where
     fn set_state(&mut self, r: bool, g: bool, b: bool) {
         let (r, g, b) = if self.is_common_anode {
             (!r, !g, !b)
-        }
-        else {
+        } else {
             (r, g, b)
         };
 
-        let _ = if r { &self.led_r.set_high() } else { &self.led_r.set_low() };
-        let _ = if g { &self.led_g.set_high() } else { &self.led_g.set_low() };
-        let _ = if b { &self.led_b.set_high() } else { &self.led_b.set_low() };
+        let _ = if r {
+            &self.led_r.set_high()
+        } else {
+            &self.led_r.set_low()
+        };
+        let _ = if g {
+            &self.led_g.set_high()
+        } else {
+            &self.led_g.set_low()
+        };
+        let _ = if b {
+            &self.led_b.set_high()
+        } else {
+            &self.led_b.set_low()
+        };
     }
 
     /// Set RGB LED status.

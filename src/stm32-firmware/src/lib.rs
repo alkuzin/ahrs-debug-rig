@@ -5,9 +5,9 @@
 
 #![no_std]
 
-pub mod status;
-pub mod payload;
-pub mod utils;
 mod hardware;
+pub mod payload;
+pub mod status;
+pub mod utils;
 
 pub use hardware::{SystemConfig, SystemContext};

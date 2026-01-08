@@ -3,24 +3,24 @@
 
 //! IMU handling abstraction layer.
 
+use crate::{
+    payload::{PAYLOAD_SIZE, Payload},
+    status::{LedStatus, Status},
+    utils::{self, halt_cpu},
+};
+use embedded_hal::spi;
+use idtp::{IDTP_PACKET_MIN_SIZE, IdtpFrame, IdtpHeader, Mode};
 use stm32f4xx_hal::{
-    prelude::*,
-    pac::{self, Peripherals, CorePeripherals},
-    rcc,
     crc32::Crc32,
     dwt::{Instant, MonoTimer},
     gpio::{Output, Pin},
+    pac::{self, CorePeripherals, Peripherals},
+    prelude::*,
+    rcc,
     spi::{Spi, Spi1},
     time::Hertz,
-    timer::CounterHz
+    timer::CounterHz,
 };
-use crate::{
-    payload::{Payload, PAYLOAD_SIZE},
-    status::{LedStatus, Status},
-    utils::{self, halt_cpu}
-};
-use idtp::{IdtpFrame, IdtpHeader, Mode, IDTP_PACKET_MIN_SIZE};
-use embedded_hal::spi;
 
 /// IDTP frame size in bytes.
 const FRAME_SIZE: usize = IDTP_PACKET_MIN_SIZE + size_of::<Payload>();
@@ -84,12 +84,13 @@ impl SystemContext {
             gpioa.pa9.into_push_pull_output(),
             gpioa.pa10.into_push_pull_output(),
             gpioa.pa11.into_push_pull_output(),
-            false
+            false,
         );
 
         // Setting timers.
         let mut delay_timer = self.cp.SYST.delay(&rcc.clocks);
-        let timestamp_timer = MonoTimer::new(self.cp.DWT, self.cp.DCB, &rcc.clocks);
+        let timestamp_timer =
+            MonoTimer::new(self.cp.DWT, self.cp.DCB, &rcc.clocks);
         let mut sampling_timer = self.dp.TIM5.counter_hz(&mut rcc);
 
         if sampling_timer.start(cfg.sampling_rate_hz).is_err() {
@@ -98,17 +99,17 @@ impl SystemContext {
         }
 
         // Setting SPI.
-        let spi_sck  = gpioa.pa5.into_alternate().internal_pull_up(true);
+        let spi_sck = gpioa.pa5.into_alternate().internal_pull_up(true);
         let spi_miso = gpioa.pa6.into_alternate().internal_pull_up(true);
         let spi_mosi = gpioa.pa7.into_alternate().internal_pull_up(true);
-        let spi_ss   = gpioa.pa4.into_push_pull_output();
+        let spi_ss = gpioa.pa4.into_push_pull_output();
 
         let spi = Spi::new(
             self.dp.SPI1,
             (Some(spi_sck), Some(spi_miso), Some(spi_mosi)),
             cfg.spi_mode,
             cfg.spi_freq,
-            &mut rcc
+            &mut rcc,
         );
 
         // Wait for IMU sensors to initialize.
@@ -136,11 +137,8 @@ impl SystemContext {
 }
 
 /// Alias for specific RGB LED.
-pub type StatusLeds = LedStatus<
-    Pin<'A', 9, Output>,
-    Pin<'A', 10, Output>,
-    Pin<'A', 11, Output>
->;
+pub type StatusLeds =
+    LedStatus<Pin<'A', 9, Output>, Pin<'A', 10, Output>, Pin<'A', 11, Output>>;
 
 /// IMU system handler.
 pub struct ImuSystem {
@@ -179,17 +177,18 @@ impl ImuSystem {
     pub fn pack_frame(&mut self) {
         // Generate payload.
         let payload = utils::generate_payload(self.cfg.rng_initial_state);
-        let timestamp = (self.start_time.elapsed() * 1000) / self.timestamp_freq;
+        let timestamp =
+            (self.start_time.elapsed() * 1000) / self.timestamp_freq;
 
         let payload_bytes = payload.as_bytes();
         self.led_status.set_status(Status::ImuSuccess);
 
         // Fill IDTP header.
-        let mut header      = IdtpHeader::new();
-        header.mode         = self.cfg.protocol_mode;
-        header.device_id    = self.cfg.device_id;
-        header.timestamp    = timestamp;
-        header.sequence     = self.sequence;
+        let mut header = IdtpHeader::new();
+        header.mode = self.cfg.protocol_mode;
+        header.device_id = self.cfg.device_id;
+        header.timestamp = timestamp;
+        header.sequence = self.sequence;
         header.payload_size = PAYLOAD_SIZE as u32;
 
         // Fill IDTP frame.
@@ -212,7 +211,7 @@ impl ImuSystem {
         };
 
         header.checksum = checksum;
-        header.crc      = crc;
+        header.crc = crc;
         idtp.set_header(&header);
 
         if idtp.pack(&mut self.frame_buffer).is_err() {
@@ -226,7 +225,7 @@ impl ImuSystem {
         self.spi_ss.set_low();
 
         match self.spi.write(&self.frame_buffer) {
-            Ok(_)  => self.led_status.set_status(Status::SpiSuccess),
+            Ok(_) => self.led_status.set_status(Status::SpiSuccess),
             Err(_) => self.led_status.set_status(Status::Error),
         }
 

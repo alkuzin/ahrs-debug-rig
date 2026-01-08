@@ -110,9 +110,7 @@ impl Payload {
     /// # Returns
     /// - Payload byte array.
     pub fn as_bytes(&self) -> [u8; PAYLOAD_SIZE] {
-        unsafe {
-            mem::transmute::<Self, [u8; PAYLOAD_SIZE]>(*self)
-        }
+        unsafe { mem::transmute::<Self, [u8; PAYLOAD_SIZE]>(*self) }
     }
 
     /// Convert a byte slice to a `Payload` struct.
@@ -123,8 +121,6 @@ impl Payload {
     /// # Returns
     /// - Payload from bytes.
     pub fn from_bytes(bytes: &[u8; PAYLOAD_SIZE]) -> Self {
-        unsafe {
-            mem::transmute::<[u8; PAYLOAD_SIZE], Self>(*bytes)
-        }
+        unsafe { mem::transmute::<[u8; PAYLOAD_SIZE], Self>(*bytes) }
     }
 }
