@@ -9,6 +9,7 @@ use stm32f4xx_hal::{pac, prelude::*, rcc::Config, crc32::Crc32, spi::Spi};
 use cortex_m_rt::entry;
 use idtp::{IdtpFrame, IdtpHeader, Mode, IDTP_PACKET_MIN_SIZE};
 use panic_halt as _;
+use stm32f4xx_hal::dwt::MonoTimer;
 use stm32f4xx_hal::hal_02::spi::MODE_0;
 use stm32_firmware::payload::PAYLOAD_SIZE;
 use stm32_firmware::utils::halt_cpu;
@@ -16,26 +17,12 @@ use stm32_firmware::utils::halt_cpu;
 #[entry]
 fn main() -> ! {
     let dp = pac::Peripherals::take().unwrap();
+    let cp = pac::CorePeripherals::take().unwrap();
 
-    let rcc_cfg = Config::hsi().sysclk(24.MHz());
+    let rcc_cfg = Config::hsi().sysclk(84.MHz());
     let mut rcc = dp.RCC.freeze(rcc_cfg);
-    let mut timer = dp.TIM2.counter_ms(&mut rcc);
 
-    let mut crc_hardware = Crc32::new(dp.CRC, &mut rcc);
     let gpioa = dp.GPIOA.split(&mut rcc);
-
-    let spi_sck = gpioa.pa5.into_alternate().internal_pull_up(true);
-    let spi_miso = gpioa.pa6.into_alternate().internal_pull_up(true);
-    let spi_mosi = gpioa.pa7.into_alternate().internal_pull_up(true);
-    let mut spi_ss = gpioa.pa4.into_push_pull_output();
-
-    let mut spi = Spi::new(
-        dp.SPI1,
-        (Some(spi_sck), Some(spi_miso), Some(spi_mosi)),
-        MODE_0,
-        3.MHz(),
-        &mut rcc
-    );
 
     let mut led_status = LedStatus::new(
         gpioa.pa9.into_push_pull_output(),
@@ -44,23 +31,28 @@ fn main() -> ! {
         false
     );
 
+    let timestamp_timer = MonoTimer::new(cp.DWT, cp.DCB, &rcc.clocks);
+    let mut sampling_timer = dp.TIM5.counter_hz(&mut rcc);
+
+    if let Err(_) = sampling_timer.start(200.Hz()) {
+        led_status.set_status(Status::Error);
+        halt_cpu();
+    }
+
+    let mut delay = cp.SYST.delay(&rcc.clocks);
+
+    let mut crc_hardware = Crc32::new(dp.CRC, &mut rcc);
+
+    let spi_sck    = gpioa.pa5.into_alternate().internal_pull_up(true);
+    let spi_miso   = gpioa.pa6.into_alternate().internal_pull_up(true);
+    let spi_mosi   = gpioa.pa7.into_alternate().internal_pull_up(true);
+    let mut spi_ss = gpioa.pa4.into_push_pull_output();
+    let spi_pins   = (Some(spi_sck), Some(spi_miso), Some(spi_mosi));
+    let mut spi    = Spi::new(dp.SPI1, spi_pins, MODE_0, 3.MHz(), &mut rcc);
+
     // Wait 3 sec. for IMU sensors to initialize.
-    if let Err(_) = timer.start(3000.millis()) {
-        led_status.set_status(Status::Error);
-        halt_cpu();
-    }
-
+    delay.delay_ms(3000u32);
     led_status.set_status(Status::SetupSuccess);
-
-    if let Err(_) = nb::block!(timer.wait()) {
-        led_status.set_status(Status::Error);
-        halt_cpu();
-    }
-
-    if let Err(_) = timer.start(2.millis()) {
-        led_status.set_status(Status::Error);
-        halt_cpu();
-    }
 
     const RNG_INITIAL_STATE: u32 = 0xABCDEF12;
     const IMU_DEVICE_ID: u16 = 0xABCD;
@@ -68,15 +60,25 @@ fn main() -> ! {
 
     let mut sequence = 0;
 
+    let freq_hz = timestamp_timer.frequency().to_Hz();
+    let start_time = timestamp_timer.now();
+
     loop {
+        if let Err(_) = nb::block!(sampling_timer.wait()) {
+            led_status.set_status(Status::Error);
+            halt_cpu();
+        }
+
         let payload = utils::generate_payload(RNG_INITIAL_STATE);
+        let timestamp = (start_time.elapsed() * 1000) / freq_hz;
+
         let payload_bytes = payload.as_bytes();
         led_status.set_status(Status::ImuSuccess);
 
         let mut header = IdtpHeader::new();
         header.mode = Mode::Safety;
         header.device_id = IMU_DEVICE_ID;
-        header.timestamp = timer.now().ticks();
+        header.timestamp = timestamp;
         header.sequence = sequence;
         header.payload_size = PAYLOAD_SIZE as u32;
 
@@ -117,10 +119,5 @@ fn main() -> ! {
         spi_ss.set_high();
 
         sequence += 1;
-
-        if let Err(_) = nb::block!(timer.wait()) {
-            led_status.set_status(Status::Error);
-            halt_cpu();
-        }
     }
 }
