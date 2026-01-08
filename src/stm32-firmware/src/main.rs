@@ -1,123 +1,42 @@
 // SPDX-License-Identifier: Apache-2.0.
 // Copyright (C) 2026-present ahrs-debug-rig project and contributors.
 
+//! IMU handler firmware entry point.
+
 #![no_std]
 #![no_main]
 
-use stm32_firmware::{status::{LedStatus, Status}, payload::Payload, utils};
-use stm32f4xx_hal::{pac, prelude::*, rcc::Config, crc32::Crc32, spi::Spi};
+use stm32_firmware::{SystemConfig, SystemContext};
+use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
+use embedded_hal::spi::MODE_0;
 use cortex_m_rt::entry;
-use idtp::{IdtpFrame, IdtpHeader, Mode, IDTP_PACKET_MIN_SIZE};
+use idtp::Mode;
 use panic_halt as _;
-use stm32f4xx_hal::dwt::MonoTimer;
-use stm32f4xx_hal::hal_02::spi::MODE_0;
-use stm32_firmware::payload::PAYLOAD_SIZE;
-use stm32_firmware::utils::halt_cpu;
+
 
 #[entry]
 fn main() -> ! {
-    let dp = pac::Peripherals::take().unwrap();
-    let cp = pac::CorePeripherals::take().unwrap();
-
-    let rcc_cfg = Config::hsi().sysclk(84.MHz());
-    let mut rcc = dp.RCC.freeze(rcc_cfg);
-
-    let gpioa = dp.GPIOA.split(&mut rcc);
-
-    let mut led_status = LedStatus::new(
-        gpioa.pa9.into_push_pull_output(),
-        gpioa.pa10.into_push_pull_output(),
-        gpioa.pa11.into_push_pull_output(),
-        false
+    let context = SystemContext::new(
+        pac::Peripherals::take().unwrap(),
+        pac::CorePeripherals::take().unwrap(),
     );
 
-    let timestamp_timer = MonoTimer::new(cp.DWT, cp.DCB, &rcc.clocks);
-    let mut sampling_timer = dp.TIM5.counter_hz(&mut rcc);
+    let config = SystemConfig {
+        rcc_cfg: Config::hsi().sysclk(84.MHz()),
+        sampling_rate_hz: 200.Hz(),
+        spi_mode: MODE_0,
+        spi_freq: 3.MHz(),
+        rng_initial_state: 0xABCDEF12,
+        device_id: 0xABCD,
+        initial_delay_ms: 3000,
+        protocol_mode: Mode::Safety,
+    };
 
-    if let Err(_) = sampling_timer.start(200.Hz()) {
-        led_status.set_status(Status::Error);
-        halt_cpu();
-    }
-
-    let mut delay = cp.SYST.delay(&rcc.clocks);
-
-    let mut crc_hardware = Crc32::new(dp.CRC, &mut rcc);
-
-    let spi_sck    = gpioa.pa5.into_alternate().internal_pull_up(true);
-    let spi_miso   = gpioa.pa6.into_alternate().internal_pull_up(true);
-    let spi_mosi   = gpioa.pa7.into_alternate().internal_pull_up(true);
-    let mut spi_ss = gpioa.pa4.into_push_pull_output();
-    let spi_pins   = (Some(spi_sck), Some(spi_miso), Some(spi_mosi));
-    let mut spi    = Spi::new(dp.SPI1, spi_pins, MODE_0, 3.MHz(), &mut rcc);
-
-    // Wait 3 sec. for IMU sensors to initialize.
-    delay.delay_ms(3000u32);
-    led_status.set_status(Status::SetupSuccess);
-
-    const RNG_INITIAL_STATE: u32 = 0xABCDEF12;
-    const IMU_DEVICE_ID: u16 = 0xABCD;
-    const FRAME_SIZE: usize = IDTP_PACKET_MIN_SIZE + size_of::<Payload>();
-
-    let mut sequence = 0;
-
-    let freq_hz = timestamp_timer.frequency().to_Hz();
-    let start_time = timestamp_timer.now();
+    let mut system = context.init(config);
 
     loop {
-        if let Err(_) = nb::block!(sampling_timer.wait()) {
-            led_status.set_status(Status::Error);
-            halt_cpu();
-        }
-
-        let payload = utils::generate_payload(RNG_INITIAL_STATE);
-        let timestamp = (start_time.elapsed() * 1000) / freq_hz;
-
-        let payload_bytes = payload.as_bytes();
-        led_status.set_status(Status::ImuSuccess);
-
-        let mut header = IdtpHeader::new();
-        header.mode = Mode::Safety;
-        header.device_id = IMU_DEVICE_ID;
-        header.timestamp = timestamp;
-        header.sequence = sequence;
-        header.payload_size = PAYLOAD_SIZE as u32;
-
-        let mut idtp = IdtpFrame::new();
-
-        idtp.set_header(&header);
-        idtp.set_payload(&payload_bytes);
-
-        let mut raw_frame = [0u8; FRAME_SIZE];
-
-        if idtp.pack(&mut raw_frame).is_err() {
-            led_status.set_status(Status::Error);
-            halt_cpu();
-        }
-
-        let checksum = utils::calculate_checksum(&raw_frame);
-        let crc = match header.mode {
-            Mode::Normal => 0,
-            Mode::Safety => crc_hardware.update_bytes(&raw_frame),
-            _ => 0,
-        };
-
-        header.checksum = checksum;
-        header.crc      = crc;
-        idtp.set_header(&header);
-
-        if idtp.pack(&mut raw_frame).is_err() {
-            led_status.set_status(Status::Error);
-            halt_cpu();
-        }
-
-        // Transferring data over SPI.
-        spi_ss.set_low();
-        match spi.write(&mut raw_frame) {
-            Ok(_)  => led_status.set_status(Status::SpiSuccess),
-            Err(_) => led_status.set_status(Status::Error),
-        }
-        spi_ss.set_high();
-
-        sequence += 1;
+        system.wait_next_sample();
+        system.pack_frame();
+        system.transfer_frame();
     }
 }
