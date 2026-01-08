@@ -120,9 +120,7 @@ impl SystemContext {
         let start_time = timestamp_timer.now();
 
         ImuSystem {
-            // timestamp_timer,
             sampling_timer,
-            // delay_timer,
             spi,
             spi_ss,
             led_status,
@@ -176,9 +174,11 @@ impl ImuSystem {
     /// Get payload & pack IDTP frame before sending.
     pub fn pack_frame(&mut self) {
         // Generate payload.
-        let payload = utils::generate_payload(self.cfg.rng_initial_state);
+        let ticks_since_start = self.start_time.elapsed();
         let timestamp =
-            (self.start_time.elapsed() * 1000) / self.timestamp_freq;
+            (ticks_since_start as u64 * 1000) / self.timestamp_freq as u64;
+
+        let payload = utils::generate_payload(self.cfg.rng_initial_state);
 
         let payload_bytes = payload.as_bytes();
         self.led_status.set_status(Status::ImuSuccess);
@@ -187,7 +187,7 @@ impl ImuSystem {
         let mut header = IdtpHeader::new();
         header.mode = self.cfg.protocol_mode;
         header.device_id = self.cfg.device_id;
-        header.timestamp = timestamp;
+        header.timestamp = timestamp as u32;
         header.sequence = self.sequence;
         header.payload_size = PAYLOAD_SIZE as u32;
 
