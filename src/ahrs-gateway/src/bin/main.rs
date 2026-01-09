@@ -54,7 +54,7 @@ fn main() -> ! {
     let spi_ss = dp.GPIO5;
 
     let (rx_buffer, rx_descriptors, _tx_buffer, _tx_descriptors) =
-        dma_buffers!(196);
+        dma_buffers!(FRAME_SIZE);
 
     let mut spi = Spi::new(dp.SPI2, Mode::_1)
         .with_sck(spi_sck)
