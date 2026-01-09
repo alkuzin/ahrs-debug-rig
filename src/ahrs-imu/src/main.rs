@@ -10,7 +10,7 @@ use cortex_m_rt::entry;
 use embedded_hal::spi::MODE_1;
 use idtp::Mode;
 use panic_halt as _;
-use stm32_firmware::{SystemConfig, SystemContext};
+use ahrs_imu::{SystemConfig, SystemContext};
 use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
 
 #[entry]

@@ -3,9 +3,9 @@
 
 # Project package info section.
 [package]
-name        = "stm32-firmware"
+name        = "ahrs-imu"
 version     = "0.1.0"
-description = "STM32 firmware for debugging communication over SPI"
+description = "STM32 firmware for handling IMU"
 authors     = ["Alexander <alkuzindev@gmail.com>"]
 repository  = "https://github.com/alkuzin/ahrs-debug-rig"
 license     = "Apache-2.0"

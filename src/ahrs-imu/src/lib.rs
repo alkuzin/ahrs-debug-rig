@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0.
 // Copyright (C) 2026-present ahrs-debug-rig project and contributors.
 
-//! STM32 firmware for debugging communication over SPI.
+//! STM32 firmware for handling IMU.
 
 #![no_std]
 
