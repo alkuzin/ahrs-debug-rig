@@ -8,16 +8,24 @@ use crate::{
     status::{LedStatus, Status},
     utils::{self, halt_cpu},
 };
+use core::ptr;
+use cortex_m::singleton;
 use embedded_hal::spi;
 use idtp::{IDTP_PACKET_MIN_SIZE, IdtpFrame, IdtpHeader, Mode};
+use stm32f4xx_hal::dma::config::DmaConfig;
+use stm32f4xx_hal::dma::{StreamsTuple, Transfer};
+use stm32f4xx_hal::pac::{DMA2, SPI1};
+use stm32f4xx_hal::spi::Tx;
+use stm32f4xx_hal::timer::SysDelay;
 use stm32f4xx_hal::{
     crc32::Crc32,
+    dma,
     dwt::{Instant, MonoTimer},
     gpio::{Output, Pin},
     pac::{self, CorePeripherals, Peripherals},
     prelude::*,
     rcc,
-    spi::{Spi, Spi1},
+    spi::Spi1,
     time::Hertz,
     timer::CounterHz,
 };
@@ -104,13 +112,22 @@ impl SystemContext {
         let spi_mosi = gpioa.pa7.into_alternate().internal_pull_up(true);
         let spi_ss = gpioa.pa4.into_push_pull_output();
 
-        let spi = Spi::new(
+        let spi = Spi1::new(
             self.dp.SPI1,
             (Some(spi_sck), Some(spi_miso), Some(spi_mosi)),
             cfg.spi_mode,
             cfg.spi_freq,
             &mut rcc,
         );
+
+        let spi_tx = spi.use_dma().tx();
+
+        // Setting DMA.
+        let streams = StreamsTuple::new(self.dp.DMA2, &mut rcc);
+        let spi_tx_stream = streams.3;
+
+        let frame_buffer: &'static mut [u8; FRAME_SIZE] =
+            singleton!(: [u8; FRAME_SIZE] = [0; FRAME_SIZE]).unwrap();
 
         // Wait for IMU sensors to initialize.
         delay_timer.delay_ms(cfg.initial_delay_ms);
@@ -121,7 +138,9 @@ impl SystemContext {
 
         ImuSystem {
             sampling_timer,
-            spi,
+            delay_timer,
+            spi_tx_stream,
+            spi_tx,
             spi_ss,
             led_status,
             crc32: Crc32::new(self.dp.CRC, &mut rcc),
@@ -129,7 +148,7 @@ impl SystemContext {
             start_time,
             timestamp_freq,
             sequence: 0,
-            frame_buffer: [0; FRAME_SIZE],
+            frame_buffer,
         }
     }
 }
@@ -138,12 +157,19 @@ impl SystemContext {
 pub type StatusLeds =
     LedStatus<Pin<'A', 9, Output>, Pin<'A', 10, Output>, Pin<'A', 11, Output>>;
 
+/// SPI DMA data transmission stream handler.
+type SpiTxStream = dma::Stream3<DMA2>;
+
 /// IMU system handler.
 pub struct ImuSystem {
     /// Timer for sampling IMU readings.
     sampling_timer: CounterHz<pac::TIM5>,
-    /// SPI handler.
-    spi: Spi1,
+    /// Timer for time delays.
+    delay_timer: SysDelay,
+    /// SPI DMA data transmission stream handler.
+    spi_tx_stream: SpiTxStream,
+    /// SPI DMA data transmission handler.
+    spi_tx: Tx<SPI1>,
     /// SPI Chip Select/Slave Select pin.
     spi_ss: Pin<'A', 4, Output>,
     /// System status RGB LED handler.
@@ -159,7 +185,7 @@ pub struct ImuSystem {
     /// Packet sequence number.
     sequence: u32,
     /// IDTP frame bytes buffer.
-    frame_buffer: [u8; FRAME_SIZE],
+    frame_buffer: &'static mut [u8; FRAME_SIZE],
 }
 
 impl ImuSystem {
@@ -197,16 +223,16 @@ impl ImuSystem {
         idtp.set_header(&header);
         idtp.set_payload(&payload_bytes);
 
-        if idtp.pack(&mut self.frame_buffer).is_err() {
+        if idtp.pack(self.frame_buffer).is_err() {
             self.led_status.set_status(Status::Error);
             halt_cpu();
         }
 
         // Calculating checksum/CRC32 for IDTP frame.
-        let checksum = utils::calculate_checksum(&self.frame_buffer);
+        let checksum = utils::calculate_checksum(self.frame_buffer);
         let crc = match header.mode {
             Mode::Normal => 0,
-            Mode::Safety => self.crc32.update_bytes(&self.frame_buffer),
+            Mode::Safety => self.crc32.update_bytes(self.frame_buffer),
             _ => 0,
         };
 
@@ -214,7 +240,7 @@ impl ImuSystem {
         header.crc = crc;
         idtp.set_header(&header);
 
-        if idtp.pack(&mut self.frame_buffer).is_err() {
+        if idtp.pack(self.frame_buffer).is_err() {
             self.led_status.set_status(Status::Error);
             halt_cpu();
         }
@@ -224,12 +250,40 @@ impl ImuSystem {
     pub fn transfer_frame(&mut self) {
         self.spi_ss.set_low();
 
-        match self.spi.write(&self.frame_buffer) {
-            Ok(_) => self.led_status.set_status(Status::SpiSuccess),
-            Err(_) => self.led_status.set_status(Status::Error),
+        // Guard interval.
+        self.delay_timer.delay_us(20);
+
+        // Transfer frame over SPI with DMA.
+        unsafe {
+            let stream = ptr::read(&self.spi_tx_stream);
+            let spi_tx = ptr::read(&self.spi_tx);
+            let frame_buffer = ptr::read(&self.frame_buffer);
+
+            let mut transfer = Transfer::init_memory_to_peripheral(
+                stream,
+                spi_tx,
+                frame_buffer,
+                None,
+                DmaConfig::default()
+                    .transfer_complete_interrupt(false)
+                    .memory_increment(true),
+            );
+
+            transfer.start(|_| {});
+            transfer.wait();
+
+            let (stream_back, tx_back, buf_back, _) = transfer.release();
+
+            ptr::write(&mut self.spi_tx_stream, stream_back);
+            ptr::write(&mut self.spi_tx, tx_back);
+            ptr::write(&mut self.frame_buffer, buf_back);
         }
 
+        // Guard interval.
+        self.delay_timer.delay_us(5);
         self.spi_ss.set_high();
+
         self.sequence += 1;
+        self.led_status.set_status(Status::SpiSuccess);
     }
 }
