@@ -7,4 +7,11 @@
 #![no_main]
 
 pub mod payload;
+pub mod utils;
+
+use crate::payload::Payload;
 pub use idtp;
+use idtp::IDTP_PACKET_MIN_SIZE;
+
+/// IDTP frame size in bytes.
+pub const FRAME_SIZE: usize = IDTP_PACKET_MIN_SIZE + size_of::<Payload>();

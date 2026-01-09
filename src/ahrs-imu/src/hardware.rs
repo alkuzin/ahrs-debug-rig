@@ -4,8 +4,10 @@
 //! IMU handling abstraction layer.
 
 use ahrs_common::{
-    payload::{PAYLOAD_SIZE, Payload},
-    idtp::{IDTP_PACKET_MIN_SIZE, IdtpFrame, IdtpHeader, Mode},
+    FRAME_SIZE,
+    idtp::{IdtpFrame, IdtpHeader, Mode},
+    payload::PAYLOAD_SIZE,
+    utils::calculate_checksum,
 };
 
 use crate::{
@@ -32,9 +34,6 @@ use stm32f4xx_hal::{
     time::Hertz,
     timer::CounterHz,
 };
-
-/// IDTP frame size in bytes.
-const FRAME_SIZE: usize = IDTP_PACKET_MIN_SIZE + size_of::<Payload>();
 
 /// Set of system's configurations.
 pub struct SystemConfig {
@@ -232,7 +231,7 @@ impl ImuSystem {
         }
 
         // Calculating checksum/CRC32 for IDTP frame.
-        let checksum = utils::calculate_checksum(self.frame_buffer);
+        let checksum = calculate_checksum(self.frame_buffer);
         let crc = match header.mode {
             Mode::Normal => 0,
             Mode::Safety => self.crc32.update_bytes(self.frame_buffer),

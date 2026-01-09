@@ -6,11 +6,11 @@
 #![no_std]
 #![no_main]
 
+use ahrs_common::idtp::Mode;
+use ahrs_imu::{SystemConfig, SystemContext};
 use cortex_m_rt::entry;
 use embedded_hal::spi::MODE_1;
-use idtp::Mode;
 use panic_halt as _;
-use ahrs_imu::{SystemConfig, SystemContext};
 use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
 
 #[entry]
