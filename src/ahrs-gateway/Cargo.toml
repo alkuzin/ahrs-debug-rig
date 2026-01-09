@@ -1,0 +1,99 @@
+# SPDX-License-Identifier: Apache-2.0.
+# Copyright (C) 2026-present ahrs-debug-rig project and contributors.
+
+# Project package info section.
+[package]
+name         = "ahrs-gateway"
+version      = "0.1.0"
+description  = "Mediator between IMU and AHRS"
+authors      = ["Alexander <alkuzindev@gmail.com>"]
+repository   = "https://github.com/alkuzin/ahrs-debug-rig"
+license      = "Apache-2.0"
+edition      = "2024"
+rust-version = "1.88"
+
+# Project binary info section.
+[[bin]]
+name = "esp32-firmware"
+path = "./src/bin/main.rs"
+
+# Project package info section.
+[dependencies]
+# Bare-metal (no_std) HAL for all Espressif ESP32 devices.
+esp-hal = { version = "1.0.0", features = ["esp32", "log-04", "unstable"] }
+# An RTOS (Real-Time Operating System) implementation for esp-hal.
+esp-rtos = { version = "0.2.0", features = [
+  "esp-alloc",
+  "esp-radio",
+  "esp32",
+  "log-04",
+] }
+# Bootloader Support Library supplementing esp-hal.
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["esp32", "log-04"] }
+# A lightweight logging facade.
+log = "0.4.27"
+# The basic primitive to control concurrency.
+critical-section = "1.2.0"
+# Input/Output traits for embedded systems.
+embedded-io = "0.7.1"
+# A no_std heap allocator for RISC-V and Xtensa processors from Espressif.
+esp-alloc = "0.9.0"
+# This is a lightweight crate for obtaining backtraces on Espressif devices.
+esp-backtrace = { version = "0.18.1", features = [
+  "esp32",
+  "panic-handler",
+  "println",
+] }
+# A library that provides print!, println!, dbg! implementations and logging
+# capabilities for Espressif devices.
+esp-println = { version = "0.16.1", features = ["esp32", "log-04"] }
+# Wireless support for Espressif ESP32 devices.
+esp-radio = { version = "0.17.0", features = [
+  "esp-alloc",
+  "esp32",
+  "log-04",
+  "smoltcp",
+  "unstable",
+  "wifi",
+] }
+# The lightweight, modular, and asynchronous TCP/IP stack designed for
+# embedded systems and IoT applications.
+smoltcp = { version = "0.12.0", default-features = false, features = [
+  "log",
+  "medium-ethernet",
+  "multicast",
+  "proto-dhcpv4",
+  "proto-dns",
+  "proto-ipv4",
+  "socket-dns",
+  "socket-icmp",
+  "socket-raw",
+  "socket-tcp",
+  "socket-udp",
+] }
+# Shared declarations among IMU handler & gateway.
+ahrs-common = { path = "../ahrs-common" }
+
+# This profile is used during the development phase of project.
+[profile.dev]
+# Compiler will apply optimizations focused on reducing the size of the binary.
+opt-level = "s"
+
+# This profile is used when preparing the application for production.
+[profile.release]
+# Reduces the number of code generation units, allowing LLVM to optimize
+# across the entire codebase using a single thread.
+codegen-units = 1
+# Generating enough debug information to facilitate debugging with tools.
+debug = 2
+# Disables assertions in the release build.
+debug-assertions = false
+# Disables incremental compilation in release builds.
+incremental = false
+# Enables Link Time Optimisation (LTO) - compiler will optimize the entire
+# program during the linking phase.
+lto = 'fat'
+# Compiler will apply optimizations focused on reducing the size of the binary.
+opt-level = 's'
+# Disables checks for integer overflow in release builds.
+overflow-checks = false

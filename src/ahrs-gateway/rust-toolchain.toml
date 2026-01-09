@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: Apache-2.0.
+# Copyright (C) 2026-present ahrs-debug-rig project and contributors.
+
+# This section defines the toolchain configuration for the project.
+[toolchain]
+channel = "esp"
