@@ -3,7 +3,7 @@
 
 //! Utilities for IMU handler firmware.
 
-use crate::payload::Payload;
+use ahrs_common::payload::Payload;
 use core::ops::Range;
 
 /// Pseudo-random numbers generator.

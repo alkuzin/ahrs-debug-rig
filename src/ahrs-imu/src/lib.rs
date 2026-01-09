@@ -6,7 +6,6 @@
 #![no_std]
 
 mod hardware;
-pub mod payload;
 pub mod status;
 pub mod utils;
 

@@ -3,15 +3,18 @@
 
 //! IMU handling abstraction layer.
 
-use crate::{
+use ahrs_common::{
     payload::{PAYLOAD_SIZE, Payload},
+    idtp::{IDTP_PACKET_MIN_SIZE, IdtpFrame, IdtpHeader, Mode},
+};
+
+use crate::{
     status::{LedStatus, Status},
     utils::{self, halt_cpu},
 };
 use core::ptr;
 use cortex_m::singleton;
 use embedded_hal::spi;
-use idtp::{IDTP_PACKET_MIN_SIZE, IdtpFrame, IdtpHeader, Mode};
 use stm32f4xx_hal::dma::config::DmaConfig;
 use stm32f4xx_hal::dma::{StreamsTuple, Transfer};
 use stm32f4xx_hal::pac::{DMA2, SPI1};

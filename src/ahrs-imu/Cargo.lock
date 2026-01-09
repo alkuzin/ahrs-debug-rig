@@ -3,13 +3,21 @@
 version = 4
 
 [[package]]
+name = "ahrs-common"
+version = "0.1.0"
+dependencies = [
+ "idtp",
+ "panic-halt",
+]
+
+[[package]]
 name = "ahrs-imu"
 version = "0.1.0"
 dependencies = [
+ "ahrs-common",
  "cortex-m",
  "cortex-m-rt",
  "embedded-hal 1.0.0",
- "idtp",
  "nb 1.1.0",
  "panic-halt",
  "stm32f4xx-hal",
