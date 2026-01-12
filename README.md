@@ -14,12 +14,12 @@ The system implements a reliable, low-latency bridge between a sensor processing
 
 The debugging stand consists of two primary hardware layers:
 
-> **Sensor Node (STM32F401CCU6)**:
+**Sensor Node (STM32F401CCU6)**:
 Generates accelerometer, gyroscope, magnetometer, and barometer sensors readings.
 Performs primary processing and packs data into IDTP frames.
 Transmits data via SPI + DMA to gateway node.
 
-> **Gateway Node: (ESP32)**: Receives IDTP frames via SPI + DMA.
+**Gateway Node: (ESP32)**: Receives IDTP frames via SPI + DMA & validates them.
 
 ## 🛠 Hardware Setup
 
@@ -53,7 +53,7 @@ Entirely written in `Rust`, leveraging type safety and memory ownership to preve
 
 > **Synchronization Logic**:
 
-- **Guard Intervals**: Implemented micro-delays (20µs/5µs) to account for ESP32 RTOS context switching.
+- **Guard Intervals**: Implemented micro-delays (20µs) to account for ESP32 RTOS context switching.
 
 - **Frame Alignment**: Strict IDTP frame-sized DMA buffer synchronization in order to prevent byte-shifting during high-frequency transmission.
 
@@ -61,7 +61,7 @@ Entirely written in `Rust`, leveraging type safety and memory ownership to preve
 
 ![SPI Debugging](/res/spi_debug2.jpg)
 
-During testing, the system achieved a **0-2% Packet Error Rate (PER)** after the initial synchronization phase with sample rate: **200 Hz** and SPI frequency: **3 MHz**.
+During testing, the system achieved a **<1% Packet Error Rate (PER)** over SPI after the initial synchronization phase with sample rate: **200 Hz** and SPI frequency: **8 MHz**.
 
 ## 🛠 How to Build & Run
 
