@@ -175,7 +175,7 @@ pub struct ImuSystem {
     spi_ss: Pin<'A', 4, Output>,
     /// System status RGB LED handler.
     led_status: StatusLeds,
-    /// CRC32 hardware-assisted handler.
+    /// CRC32 handler.
     crc32: Crc<u32>,
     /// Set of system's configurations.
     cfg: SystemConfig,
