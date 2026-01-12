@@ -26,7 +26,7 @@ fn main() -> ! {
         rcc_cfg: Config::hsi().sysclk(84.MHz()),
         sampling_rate_hz: 200.Hz(),
         spi_mode: MODE_1,
-        spi_freq: 3.MHz(),
+        spi_freq: 8.MHz(),
         rng_initial_state: 0xABCDEF12,
         device_id: 0xABCD,
         initial_delay_ms: 3000,
