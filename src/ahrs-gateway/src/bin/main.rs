@@ -11,7 +11,8 @@
     especially those holding buffers for the duration of a data transfer."
 )]
 
-use ahrs_common::idtp::IdtpFrame;
+use ahrs_common::FRAME_SIZE;
+use ahrs_gateway::validate_frame;
 use esp_backtrace as _;
 use esp_hal::{
     clock::CpuClock,
@@ -24,7 +25,6 @@ use esp_hal::{
     timer::timg::TimerGroup,
 };
 use log::info;
-use ahrs_common::FRAME_SIZE;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -47,6 +47,7 @@ fn main() -> ! {
 
     info!("Initialized successfully");
 
+    // Setting SPI + DMA.
     let dma_channel = dp.DMA_SPI2;
     let spi_sck = dp.GPIO18;
     let spi_miso = dp.GPIO19;
@@ -66,10 +67,7 @@ fn main() -> ! {
     info!("SPI Slave initialized, waiting for STM32...");
 
     let mut dma_rx_buf = DmaRxBuf::new(rx_descriptors, rx_buffer).unwrap();
-
-    let mut error_counter: u32 = 0;
     let mut prev_sequence: u32 = 0;
-    let mut counter = 0;
 
     loop {
         let transfer = spi.read(FRAME_SIZE, dma_rx_buf).unwrap();
@@ -79,25 +77,13 @@ fn main() -> ! {
         dma_rx_buf = rx_buf_back;
 
         let received_data = dma_rx_buf.as_slice();
+        let frame_bytes = &received_data[0..FRAME_SIZE];
 
-        let idtp = IdtpFrame::from(&received_data[0..196]);
-        let header = idtp.header();
-
-        let sequence = header.sequence;
-
-        if sequence < prev_sequence || sequence - prev_sequence > 1 {
-            error_counter += 1;
+        match validate_frame(&frame_bytes, prev_sequence) {
+            Ok(sequence) => prev_sequence = sequence,
+            Err(_) => {}
         }
-
-        if counter == 100 {
-            counter = 0;
-            info!("Error counter: {}", error_counter);
-            info!("Header: {:X?}", &received_data[0..32]);
-        }
-
-        prev_sequence = sequence;
 
         led.toggle();
-        counter += 1;
     }
 }

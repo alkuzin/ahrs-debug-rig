@@ -73,6 +73,8 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 ] }
 # Shared declarations among IMU handler & gateway.
 ahrs-common = { path = "../ahrs-common" }
+# Rust implementation of CRC.
+crc = "3.4"
 
 # This profile is used during the development phase of project.
 [profile.dev]
