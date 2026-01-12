@@ -28,6 +28,8 @@ stm32f4xx-hal = { version = "0.23", features = ["stm32f401"] }
 embedded-hal = "1.0.0"
 # Shared declarations among IMU handler & gateway.
 ahrs-common = { path = "../ahrs-common" }
+# Rust implementation of CRC.
+crc = "3.4"
 
 # Project building settings during release.
 [profile.release]

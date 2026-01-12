@@ -3,19 +3,19 @@
 
 //! IMU handling abstraction layer.
 
+use crate::{
+    status::{LedStatus, Status},
+    utils::{self, halt_cpu},
+};
 use ahrs_common::{
     FRAME_SIZE,
     idtp::{IdtpFrame, IdtpHeader, Mode},
     payload::PAYLOAD_SIZE,
     utils::calculate_checksum,
 };
-
-use crate::{
-    status::{LedStatus, Status},
-    utils::{self, halt_cpu},
-};
 use core::ptr;
 use cortex_m::singleton;
+use crc::Crc;
 use embedded_hal::spi;
 use stm32f4xx_hal::dma::config::DmaConfig;
 use stm32f4xx_hal::dma::{StreamsTuple, Transfer};
@@ -23,7 +23,6 @@ use stm32f4xx_hal::pac::{DMA2, SPI1};
 use stm32f4xx_hal::spi::Tx;
 use stm32f4xx_hal::timer::SysDelay;
 use stm32f4xx_hal::{
-    crc32::Crc32,
     dma,
     dwt::{Instant, MonoTimer},
     gpio::{Output, Pin},
@@ -145,7 +144,7 @@ impl SystemContext {
             spi_tx,
             spi_ss,
             led_status,
-            crc32: Crc32::new(self.dp.CRC, &mut rcc),
+            crc32: Crc::<u32>::new(&crc::CRC_32_AUTOSAR),
             cfg,
             start_time,
             timestamp_freq,
@@ -177,7 +176,7 @@ pub struct ImuSystem {
     /// System status RGB LED handler.
     led_status: StatusLeds,
     /// CRC32 hardware-assisted handler.
-    crc32: Crc32,
+    crc32: Crc<u32>,
     /// Set of system's configurations.
     cfg: SystemConfig,
     /// Sampling start timestamp.
@@ -234,7 +233,11 @@ impl ImuSystem {
         let checksum = calculate_checksum(self.frame_buffer);
         let crc = match header.mode {
             Mode::Normal => 0,
-            Mode::Safety => self.crc32.update_bytes(self.frame_buffer),
+            Mode::Safety => {
+                let mut digest = self.crc32.digest();
+                digest.update(self.frame_buffer);
+                digest.finalize()
+            }
             _ => 0,
         };
 
@@ -251,9 +254,6 @@ impl ImuSystem {
     /// Transfer prepared IDTP frame.
     pub fn transfer_frame(&mut self) {
         self.spi_ss.set_low();
-
-        // Guard interval.
-        self.delay_timer.delay_us(20);
 
         // Transfer frame over SPI with DMA.
         unsafe {
@@ -282,7 +282,7 @@ impl ImuSystem {
         }
 
         // Guard interval.
-        self.delay_timer.delay_us(5);
+        self.delay_timer.delay_us(20);
         self.spi_ss.set_high();
 
         self.sequence += 1;
