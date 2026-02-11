@@ -4,7 +4,7 @@
 # Project package info section.
 [package]
 name        = "ahrs-imu"
-version     = "0.1.0"
+version     = "0.2.0"
 description = "STM32 firmware for handling IMU"
 authors     = ["Alexander <alkuzindev@gmail.com>"]
 repository  = "https://github.com/alkuzin/ahrs-debug-rig"
@@ -13,27 +13,46 @@ edition     = "2024"
 
 # Project dependencies section.
 [dependencies]
-# Low level access to Cortex-M processors.
-cortex-m = "0.7"
+# An async/await executor designed for embedded usage.
+embassy-executor = { version = "0.9.1", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
+# Timekeeping, delays and timeouts.
+embassy-time = { version = "0.5.0", features = ["defmt"] }
+# The embassy-stm32 HAL aims to provide a safe, idiomatic
+# hardware abstraction layer for all STM32 families.
+embassy-stm32 = { version = "0.5.0", features = ["stm32f401cc", "defmt", "time-driver-any"] }
 # Startup code and minimal runtime for Cortex-M microcontrollers.
 cortex-m-rt = "0.7"
-# Minimal and reusable non-blocking I/O layer.
-nb = "1.1"
-# Set the panicking behavior to halt.
-panic-halt = "1.0.0"
-# Multi device hardware abstraction on top of the peripheral access API
-# for the STMicro STM32F4 series microcontrollers.
-stm32f4xx-hal = { version = "0.23", features = ["stm32f401"] }
-# A Hardware Abstraction Layer (HAL) for embedded systems.
-embedded-hal = "1.0.0"
-# Shared declarations among IMU handler & gateway.
-ahrs-common = { path = "../ahrs-common" }
-# Rust implementation of CRC.
-crc = "3.4"
+# Low level access to Cortex-M processors.
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+# Panic handler: panics will make probe-run print a backtrace and exit with
+# a non-zero status code, indicating failure
+panic-probe = { version = "1.0.0", features = ["defmt"] }
+# Global logger over RTT for defmt.
+defmt-rtt = "1.1.0"
+# Basic primitive to control concurrency.
+critical-section = "1.2.0"
+# A highly efficient logging framework that targets resource-constrained
+# devices, like microcontrollers.
+defmt = "1.0.1"
+
+# Project building settings during development.
+[profile.dev]
+# Panic strategy for platforms that does not support unwinding.
+panic = "abort"
+# Turn on minimum optimizations.
+opt-level = 0
+# Include debug information in the compiled binary.
+debug = true
 
 # Project building settings during release.
 [profile.release]
-# Turn on maximum optimizations. STM32F401CCU6 has only 256 KB of flash memory.
+# Panic strategy for platforms that does not support unwinding.
+panic = "abort"
+# Turn on maximum optimizations.
 opt-level = 'z'
 # Link-time-optimizations (LTO) for further size reduction.
 lto = true
+# Don't include debug information in the compiled binary.
+debug = false
+
+[workspace]

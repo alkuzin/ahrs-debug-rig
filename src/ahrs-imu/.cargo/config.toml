@@ -1,12 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0.
 # Copyright (C) 2026-present ahrs-debug-rig project and contributors.
 
-[target.thumbv7em-none-eabihf]
-# Run before: openocd -f interface/stlink.cfg -f target/stm32f4x.cfg.
-runner = "gdb-multiarch -q -x openocd.gdb"
-
+# Build process configuration section.
 [build]
 # Compile for the instruction set of the STM32F4.
 target = "thumbv7em-none-eabihf"
-# use the Tlink.x scrip from the cortex-m-rt crate
-rustflags = [ "-C", "link-arg=-Tlink.x"]
+rustflags = [
+    # Use the Tlink.x scrip from the cortex-m-rt crate.
+    "-C", "link-arg=-Tlink.x",
+    # Use the Tdefmt.x scrip from the defmt crate.
+    "-C", "link-arg=-Tdefmt.x",
+]
+
+# Using probe-rs for flashing the firmware.
+[target.thumbv7em-none-eabihf]
+runner = "probe-rs run --chip STM32F401CCUx"

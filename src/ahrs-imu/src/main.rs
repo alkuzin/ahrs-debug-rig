@@ -6,39 +6,31 @@
 #![no_std]
 #![no_main]
 
-use ahrs_common::idtp::Mode;
-use ahrs_imu::{SystemConfig, SystemContext};
-use cortex_m_rt::entry;
-use embedded_hal::spi::MODE_1;
-use panic_halt as _;
-use stm32f4xx_hal::{pac, prelude::*, rcc::Config};
+use defmt_rtt as _;
+use embassy_executor::Spawner;
+use embassy_stm32::{
+    Peripherals,
+    gpio::{Level, Output, Speed},
+};
+use embassy_time::Timer;
+use panic_probe as _;
 
-#[entry]
-fn main() -> ! {
-    // Handling system's peripherals.
-    let context = SystemContext::new(
-        pac::Peripherals::take().unwrap(),
-        pac::CorePeripherals::take().unwrap(),
-    );
-
-    // Setting system's configurations.
-    let config = SystemConfig {
-        rcc_cfg: Config::hsi().sysclk(84.MHz()),
-        sampling_rate_hz: 200.Hz(),
-        spi_mode: MODE_1,
-        spi_freq: 8.MHz(),
-        rng_initial_state: 0xABCDEF12,
-        device_id: 0xABCD,
-        initial_delay_ms: 3000,
-        protocol_mode: Mode::Safety,
-    };
-
-    // Initializing IMU system handler.
-    let mut system = context.init(config);
+#[embassy_executor::main]
+async fn main(_spawner: Spawner) -> ! {
+    let p: Peripherals = embassy_stm32::init(Default::default());
+    let mut led = Output::new(p.PC13, Level::High, Speed::Low);
+    let mut led_r = Output::new(p.PA9, Level::High, Speed::Low);
+    let mut led_g = Output::new(p.PA10, Level::High, Speed::Low);
+    let mut led_b = Output::new(p.PA11, Level::High, Speed::Low);
 
     loop {
-        system.wait_next_sample();
-        system.pack_frame();
-        system.transfer_frame();
+        led.toggle();
+        Timer::after_millis(100).await;
+        led_r.toggle();
+        Timer::after_millis(100).await;
+        led_g.toggle();
+        Timer::after_millis(200).await;
+        led_b.toggle();
+        Timer::after_millis(300).await;
     }
 }
