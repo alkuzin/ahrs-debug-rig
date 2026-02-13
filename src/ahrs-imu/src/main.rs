@@ -16,24 +16,24 @@
     missing_docs
 )]
 
-mod tasks;
-mod hal;
-mod types;
 mod drivers;
+mod hal;
+mod tasks;
+mod types;
 
 use crate::{
     hal::SystemPeripherals,
     tasks::status::{set_system_status, system_status_task},
-    types::SystemStatus
+    types::SystemStatus,
 };
+use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_stm32::Peripherals;
 use embassy_time::Timer;
 use panic_probe as _;
-use defmt_rtt as _;
 
 /// IMU handler firmware entry point.
-/// 
+///
 /// # Parameters
 /// - `spawner` - given tasks spawner to handle.
 #[embassy_executor::main]

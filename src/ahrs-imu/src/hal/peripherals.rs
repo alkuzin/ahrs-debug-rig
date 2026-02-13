@@ -3,9 +3,12 @@
 
 //! MCU peripherals related declarations.
 
-use embassy_stm32::{gpio::{Level, Output, Speed}, Peripherals};
-use embassy_time::{Duration, Ticker};
 use crate::types::StatusLed;
+use embassy_stm32::{
+    Peripherals,
+    gpio::{Level, Output, Speed},
+};
+use embassy_time::{Duration, Ticker};
 
 /// IMU handler system peripherals.
 pub struct SystemPeripherals {
@@ -19,10 +22,10 @@ pub struct SystemPeripherals {
 
 impl SystemPeripherals {
     /// Construct & initialize IMU handler system peripherals.
-    /// 
+    ///
     /// # Parameters
     /// - `p` - given STM32 peripherals to handle.
-    /// 
+    ///
     /// # Returns
     /// - Initialize IMU handler system peripherals.
     pub fn new(p: Peripherals) -> Self {

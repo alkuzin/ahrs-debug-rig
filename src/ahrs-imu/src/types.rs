@@ -3,8 +3,8 @@
 
 //! Common types declarations.
 
-use embassy_stm32::gpio::Output;
 use crate::drivers::RgbLed;
+use embassy_stm32::gpio::Output;
 
 /// Status RGB LED alias.
 pub type StatusLed<'a> = RgbLed<Output<'a>, Output<'a>, Output<'a>>;

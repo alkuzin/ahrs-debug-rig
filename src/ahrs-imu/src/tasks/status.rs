@@ -3,13 +3,16 @@
 
 //! IMU firmware status related declarations.
 
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
-use embassy_time::Ticker;
 use crate::types::{StatusLed, SystemStatus};
 use core::ops::{Deref, DerefMut};
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex,
+};
+use embassy_time::Ticker;
 
 /// Current system status.
-static SYSTEM_STATUS: Mutex<CriticalSectionRawMutex, SystemStatus> = Mutex::new(SystemStatus::Initializing);
+static SYSTEM_STATUS: Mutex<CriticalSectionRawMutex, SystemStatus> =
+    Mutex::new(SystemStatus::Initializing);
 
 /// Set current system status.
 ///
@@ -37,7 +40,10 @@ pub async fn get_system_status() -> SystemStatus {
 /// - `led` - given status led to handle.
 /// - `ticker` - given status ticker to handle.
 #[embassy_executor::task]
-pub async fn system_status_task(mut led: StatusLed<'static>, mut ticker: Ticker) {
+pub async fn system_status_task(
+    mut led: StatusLed<'static>,
+    mut ticker: Ticker,
+) {
     loop {
         // Waiting for the next tick.
         ticker.next().await;
