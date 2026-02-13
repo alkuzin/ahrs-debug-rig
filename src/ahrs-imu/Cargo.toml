@@ -17,6 +17,8 @@ edition     = "2024"
 embassy-executor = { version = "0.9.1", features = ["arch-cortex-m", "executor-thread", "executor-interrupt", "defmt"] }
 # Timekeeping, delays and timeouts.
 embassy-time = { version = "0.5.0", features = ["defmt"] }
+# Synchronization primitives and data structures with async support.
+embassy-sync = { version = "0.7.2", features = ["defmt"] }
 # The embassy-stm32 HAL aims to provide a safe, idiomatic
 # hardware abstraction layer for all STM32 families.
 embassy-stm32 = { version = "0.5.0", features = ["stm32f401cc", "defmt", "time-driver-any"] }
@@ -24,6 +26,8 @@ embassy-stm32 = { version = "0.5.0", features = ["stm32f401cc", "defmt", "time-d
 cortex-m-rt = "0.7"
 # Low level access to Cortex-M processors.
 cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+# A Hardware Abstraction Layer (HAL) for embedded systems.
+embedded-hal = "1.0.0"
 # Panic handler: panics will make probe-run print a backtrace and exit with
 # a non-zero status code, indicating failure
 panic-probe = { version = "1.0.0", features = ["defmt"] }
@@ -54,5 +58,3 @@ opt-level = 'z'
 lto = true
 # Don't include debug information in the compiled binary.
 debug = false
-
-[workspace]
