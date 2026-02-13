@@ -4,7 +4,6 @@
 //! IMU firmware status related declarations.
 
 use crate::types::{StatusLed, SystemStatus};
-use core::ops::{Deref, DerefMut};
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex,
 };
@@ -19,8 +18,7 @@ static SYSTEM_STATUS: Mutex<CriticalSectionRawMutex, SystemStatus> =
 /// # Parameters
 /// - `status` - given system status to set.
 pub async fn set_system_status(status: SystemStatus) {
-    let mut guard = SYSTEM_STATUS.lock().await;
-    let system_status = guard.deref_mut();
+    let system_status = &mut *SYSTEM_STATUS.lock().await;
     *system_status = status;
 }
 
@@ -29,8 +27,7 @@ pub async fn set_system_status(status: SystemStatus) {
 /// # Returns
 /// - Current system status.
 pub async fn get_system_status() -> SystemStatus {
-    let guard = SYSTEM_STATUS.lock().await;
-    let system_status = guard.deref();
+    let system_status = &*SYSTEM_STATUS.lock().await;
     *system_status
 }
 

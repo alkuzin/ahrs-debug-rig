@@ -15,6 +15,7 @@
     clippy::unreachable,
     missing_docs
 )]
+#![allow(clippy::future_not_send)]
 
 mod drivers;
 mod hal;
@@ -28,7 +29,7 @@ use crate::{
 };
 use defmt_rtt as _;
 use embassy_executor::Spawner;
-use embassy_stm32::Peripherals;
+use embassy_stm32::{Config, Peripherals};
 use embassy_time::Timer;
 use panic_probe as _;
 
@@ -39,7 +40,7 @@ use panic_probe as _;
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
     // Initializing system peripherals.
-    let p: Peripherals = embassy_stm32::init(Default::default());
+    let p: Peripherals = embassy_stm32::init(Config::default());
     let mut sp = SystemPeripherals::new(p);
 
     // Spawning task for handling system status update.

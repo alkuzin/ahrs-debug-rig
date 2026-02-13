@@ -34,7 +34,12 @@ where
     ///
     /// # Returns
     /// - New `LedStatus` object.
-    pub fn new(led_r: R, led_g: G, led_b: B, is_common_anode: bool) -> Self {
+    pub const fn new(
+        led_r: R,
+        led_g: G,
+        led_b: B,
+        is_common_anode: bool,
+    ) -> Self {
         Self {
             led_r,
             led_g,
