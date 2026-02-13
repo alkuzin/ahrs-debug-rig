@@ -5,32 +5,60 @@
 
 #![no_std]
 #![no_main]
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![deny(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::indexing_slicing,
+    clippy::panic,
+    clippy::todo,
+    clippy::unreachable,
+    missing_docs
+)]
 
-use defmt_rtt as _;
-use embassy_executor::Spawner;
-use embassy_stm32::{
-    Peripherals,
-    gpio::{Level, Output, Speed},
+mod tasks;
+mod hal;
+mod types;
+mod drivers;
+
+use crate::{
+    hal::SystemPeripherals,
+    tasks::status::{set_system_status, system_status_task},
+    types::SystemStatus
 };
+use embassy_executor::Spawner;
+use embassy_stm32::Peripherals;
 use embassy_time::Timer;
 use panic_probe as _;
+use defmt_rtt as _;
 
+/// IMU handler firmware entry point.
+/// 
+/// # Parameters
+/// - `spawner` - given tasks spawner to handle.
 #[embassy_executor::main]
-async fn main(_spawner: Spawner) -> ! {
+async fn main(spawner: Spawner) -> ! {
+    // Initializing system peripherals.
     let p: Peripherals = embassy_stm32::init(Default::default());
-    let mut led = Output::new(p.PC13, Level::High, Speed::Low);
-    let mut led_r = Output::new(p.PA9, Level::High, Speed::Low);
-    let mut led_g = Output::new(p.PA10, Level::High, Speed::Low);
-    let mut led_b = Output::new(p.PA11, Level::High, Speed::Low);
+    let mut sp = SystemPeripherals::new(p);
+
+    // Spawning task for handling system status update.
+    let _ = spawner.spawn(system_status_task(sp.status_led, sp.status_ticker));
 
     loop {
-        led.toggle();
+        sp.builtin_led.toggle();
         Timer::after_millis(100).await;
-        led_r.toggle();
-        Timer::after_millis(100).await;
-        led_g.toggle();
+
+        set_system_status(SystemStatus::Initializing).await;
         Timer::after_millis(200).await;
-        led_b.toggle();
+
+        set_system_status(SystemStatus::Ok).await;
         Timer::after_millis(300).await;
+
+        set_system_status(SystemStatus::Error).await;
+        Timer::after_millis(400).await;
+
+        set_system_status(SystemStatus::Warning).await;
+        Timer::after_millis(500).await;
     }
 }
