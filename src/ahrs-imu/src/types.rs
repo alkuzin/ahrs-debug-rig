@@ -8,3 +8,16 @@ use crate::drivers::RgbLed;
 
 /// Status RGB LED alias.
 pub type StatusLed<'a> = RgbLed<Output<'a>, Output<'a>, Output<'a>>;
+
+/// System status levels.
+#[derive(Copy, Clone)]
+pub enum SystemStatus {
+    /// All subsystems operational.
+    Ok,
+    /// Non-critical issue.
+    Warning,
+    /// Critical failure.
+    Error,
+    /// Initialization phase.
+    Initializing,
+}
