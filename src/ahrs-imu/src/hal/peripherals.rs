@@ -16,8 +16,6 @@ pub struct SystemPeripherals {
     pub builtin_led: Output<'static>,
     /// Status LED handler.
     pub status_led: StatusLed<'static>,
-    /// Status task ticker.
-    pub status_ticker: Ticker,
 }
 
 impl SystemPeripherals {
@@ -41,7 +39,6 @@ impl SystemPeripherals {
         Self {
             builtin_led: Output::new(builtin_led_pin, Level::High, Speed::Low),
             status_led: StatusLed::new(led_r, led_g, led_b, false),
-            status_ticker: Ticker::every(Duration::from_millis(10)),
         }
     }
 }

@@ -30,7 +30,7 @@ use crate::{
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_stm32::{Config, Peripherals};
-use embassy_time::Timer;
+use embassy_time::{Duration, Ticker, Timer};
 use panic_probe as _;
 
 /// IMU handler firmware entry point.
@@ -44,22 +44,11 @@ async fn main(spawner: Spawner) -> ! {
     let mut sp = SystemPeripherals::new(p);
 
     // Spawning task for handling system status update.
-    let _ = spawner.spawn(system_status_task(sp.status_led, sp.status_ticker));
+    let ticker = Ticker::every(Duration::from_millis(10));
+    let _ = spawner.spawn(system_status_task(sp.status_led, ticker));
 
     loop {
         sp.builtin_led.toggle();
         Timer::after_millis(100).await;
-
-        set_system_status(SystemStatus::Initializing).await;
-        Timer::after_millis(200).await;
-
-        set_system_status(SystemStatus::Ok).await;
-        Timer::after_millis(300).await;
-
-        set_system_status(SystemStatus::Error).await;
-        Timer::after_millis(400).await;
-
-        set_system_status(SystemStatus::Warning).await;
-        Timer::after_millis(500).await;
     }
 }
