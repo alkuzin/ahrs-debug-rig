@@ -3,5 +3,4 @@
 
 //! Hardware abstraction layer.
 
-mod peripherals;
-pub use peripherals::SystemPeripherals;
+pub mod peripherals;

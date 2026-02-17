@@ -23,7 +23,7 @@ mod tasks;
 mod types;
 
 use crate::{
-    hal::SystemPeripherals,
+    hal::peripherals::SystemPeripherals,
     tasks::{status::{system_status_task}, imu::imu_acquisition_task},
     drivers::Imu,
 };
