@@ -4,4 +4,7 @@
 //! IMU handler drivers.
 
 mod rgb_led;
+mod imu;
+
 pub use rgb_led::RgbLed;
+pub use imu::Imu;

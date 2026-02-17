@@ -15,3 +15,8 @@ rustflags = [
 # Using probe-rs for flashing the firmware.
 [target.thumbv7em-none-eabihf]
 runner = "probe-rs run --chip STM32F401CCUx"
+
+# Enviroment variables configuration section.
+[env]
+# Display all logs.
+DEFMT_LOG = "trace"
