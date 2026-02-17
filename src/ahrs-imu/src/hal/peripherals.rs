@@ -7,8 +7,12 @@ use crate::types::StatusLed;
 use embassy_stm32::{
     Peripherals,
     gpio::{Level, Output, Speed},
+    bind_interrupts,
+    peripherals,
+    i2c::{self, I2c, Master},
+    mode::Async,
+    time::Hertz
 };
-use embassy_time::{Duration, Ticker};
 
 /// IMU handler system peripherals.
 pub struct SystemPeripherals {
@@ -16,6 +20,8 @@ pub struct SystemPeripherals {
     pub builtin_led: Output<'static>,
     /// Status LED handler.
     pub status_led: StatusLed<'static>,
+    /// I2C handler for IMU.
+    pub i2c: I2c<'static, Async, Master>,
 }
 
 impl SystemPeripherals {
@@ -36,9 +42,29 @@ impl SystemPeripherals {
         let led_g = Output::new(led_status_green_pin, Level::High, Speed::Low);
         let led_b = Output::new(led_status_blue_pin, Level::High, Speed::Low);
 
-        Self {
-            builtin_led: Output::new(builtin_led_pin, Level::High, Speed::Low),
-            status_led: StatusLed::new(led_r, led_g, led_b, false),
-        }
+        let builtin_led = Output::new(builtin_led_pin, Level::High, Speed::Low);
+        let status_led = StatusLed::new(led_r, led_g, led_b, false);
+
+        let mut i2c_cfg = i2c::Config::default();
+        // I2C fast mode (400 kHz).
+        i2c_cfg.frequency = Hertz(400_000);
+
+        let i2c = I2c::new(
+            p.I2C1,
+            p.PB6,
+            p.PB7,
+            Irqs,
+            p.DMA1_CH6,
+            p.DMA1_CH5  ,
+            i2c_cfg,
+        );
+
+        Self { builtin_led, status_led, i2c }
     }
 }
+
+// Binding I2C interrupts to handlers.
+bind_interrupts!(struct Irqs {
+    I2C1_EV => i2c::EventInterruptHandler<peripherals::I2C1>;
+    I2C1_ER => i2c::ErrorInterruptHandler<peripherals::I2C1>;
+});
