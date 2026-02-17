@@ -3,7 +3,7 @@
 
 //! Inertial Measurement Unit (IMU) driver implementation.
 
-use embassy_stm32::{i2c::{I2c, Master}, mode::Async};
+use crate::hal::peripherals::I2cDriver;
 use idtp::payload::Imu6;
 
 /// Inertial Measurement Unit (IMU) driver.
@@ -17,7 +17,7 @@ impl Imu {
     /// 
     /// # Returns
     /// - New `Imu` object.
-    pub async fn new(_i2c: I2c<'static, Async, Master>) -> Self {
+    pub async fn new(_i2c: I2cDriver) -> Self {
         Self {}
     }
 

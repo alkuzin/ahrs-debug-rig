@@ -25,7 +25,6 @@ mod types;
 use crate::{
     hal::peripherals::SystemPeripherals,
     tasks::{status::{system_status_task}, imu::imu_acquisition_task},
-    drivers::Imu,
 };
 use defmt_rtt as _;
 use embassy_executor::Spawner;
@@ -41,14 +40,14 @@ use panic_probe as _;
 async fn main(spawner: Spawner) -> ! {
     // Initializing system peripherals.
     let p: Peripherals = embassy_stm32::init(Config::default());
-    let mut sp = SystemPeripherals::new(p);
+    let mut sp = SystemPeripherals::new(p).await;
 
     // Spawning task for handling system status update.
     let ticker = Ticker::every(Duration::from_millis(10));
     let _ = spawner.spawn(system_status_task(sp.status_led, ticker));
 
-    let imu = Imu::new(sp.i2c).await;
-    let _ = spawner.spawn(imu_acquisition_task(imu));
+    // Spawning task for handling IMU data acquisition.
+    let _ = spawner.spawn(imu_acquisition_task(sp.imu));
 
     loop {
         sp.builtin_led.toggle();

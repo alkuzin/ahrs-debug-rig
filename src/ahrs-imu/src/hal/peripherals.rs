@@ -14,6 +14,7 @@ use embassy_stm32::{
     time::Hertz,
     spi::{self, Spi},
 };
+use crate::drivers::Imu;
 
 /// Alias for I2C driver.
 pub type I2cDriver = I2c<'static, Async, i2c::mode::Master>;
@@ -27,12 +28,12 @@ pub struct SystemPeripherals {
     pub builtin_led: Output<'static>,
     /// Status LED handler.
     pub status_led: StatusLed<'static>,
-    /// I2C handler for IMU.
-    pub i2c: I2cDriver, 
     /// SPI handler.
     pub spi: SpiDriver,
     /// SPI slave select.
     pub spi_ss: Output<'static>,
+    /// IMU driver.
+    pub imu: Imu,
 }
 
 impl SystemPeripherals {
@@ -43,7 +44,7 @@ impl SystemPeripherals {
     ///
     /// # Returns
     /// - Initialize IMU handler system peripherals.
-    pub fn new(p: Peripherals) -> Self {
+    pub async fn new(p: Peripherals) -> Self {
         let led_status_red_pin = p.PA9;
         let led_status_green_pin = p.PA10;
         let led_status_blue_pin = p.PA11;
@@ -97,8 +98,10 @@ impl SystemPeripherals {
             spi_rx_dma,
             spi_cfg,
         );
+        
+        let imu = Imu::new(i2c).await;
 
-        Self { builtin_led, status_led, i2c, spi, spi_ss }
+        Self { builtin_led, status_led, spi, spi_ss, imu }
     }
 }
 
