@@ -24,8 +24,8 @@ mod types;
 
 use crate::{
     hal::SystemPeripherals,
-    tasks::status::{set_system_status, system_status_task},
-    types::SystemStatus,
+    tasks::{status::{system_status_task}, imu::imu_acquisition_task},
+    drivers::Imu,
 };
 use defmt_rtt as _;
 use embassy_executor::Spawner;
@@ -46,6 +46,9 @@ async fn main(spawner: Spawner) -> ! {
     // Spawning task for handling system status update.
     let ticker = Ticker::every(Duration::from_millis(10));
     let _ = spawner.spawn(system_status_task(sp.status_led, ticker));
+
+    let imu = Imu::new(sp.i2c).await;
+    let _ = spawner.spawn(imu_acquisition_task(imu));
 
     loop {
         sp.builtin_led.toggle();

@@ -5,6 +5,8 @@
 
 use crate::drivers::RgbLed;
 use embassy_stm32::gpio::Output;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::channel::Channel;
 use idtp::payload::{IdtpPayload, Imu6};
 
 /// Status RGB LED alias.
@@ -33,3 +35,6 @@ pub struct ImuSample<T: IdtpPayload> {
 
 /// Alias for 6-axes IMU sample.
 pub type Sample = ImuSample<Imu6>;
+
+/// Alias for IMU communication channel.
+pub type ImuChannel = Channel<CriticalSectionRawMutex, Sample, 4>;

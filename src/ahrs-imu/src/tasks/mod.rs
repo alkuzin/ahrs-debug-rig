@@ -4,3 +4,4 @@
 //! Firmware's asynchronous tasks.
 
 pub mod status;
+pub mod imu;
