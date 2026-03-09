@@ -38,9 +38,9 @@ critical-section = "1.2.0"
 # A highly efficient logging framework that targets resource-constrained
 # devices, like microcontrollers.
 defmt = "1.0.1"
-# Inertial Measurement Unit Data Transfer Protocol (IDTP) - network protocol
-# used for transferring IMU data.
-idtp = { git = "https://github.com/alkuzin/idtp", version = "3.1.0" }
+# The lightweight, binary application-layer (L7) protocol designed specifically
+# for the Inertial Navigation Systems (INS) and autonomous platforms.
+indtp = { git = "https://github.com/alkuzin/indtp", default-features = true }
 
 # Project building settings during development.
 [profile.dev]

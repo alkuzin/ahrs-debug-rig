@@ -4,7 +4,7 @@
 //! Inertial Measurement Unit (IMU) driver implementation.
 
 use crate::hal::peripherals::I2cDriver;
-use idtp::payload::Imu6;
+use indtp::payload::Imu6;
 
 /// Inertial Measurement Unit (IMU) driver.
 pub struct Imu;

@@ -5,9 +5,11 @@
 
 use crate::drivers::RgbLed;
 use embassy_stm32::gpio::Output;
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Channel;
-use idtp::payload::{IdtpPayload, Imu6};
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex,
+    channel::Channel
+};
+use indtp::payload::{Payload, Imu6};
 
 /// Status RGB LED alias.
 pub type StatusLed<'a> = RgbLed<Output<'a>, Output<'a>, Output<'a>>;
@@ -26,7 +28,7 @@ pub enum SystemStatus {
 }
 
 /// Generic IMU sample.
-pub struct ImuSample<T: IdtpPayload> {
+pub struct ImuSample<T: Payload> {
     /// IMU sensors readings.
     pub data: T,
     /// IMU local time in milliseconds.
