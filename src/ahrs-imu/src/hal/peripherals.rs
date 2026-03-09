@@ -3,10 +3,9 @@
 
 //! MCU peripherals related declarations.
 
-use crate::types::StatusLed;
 use embassy_stm32::{
     Peripherals,
-    gpio::{Level, Output, Speed},
+    gpio::{Level, Output, Speed, Input, Pull},
     bind_interrupts,
     peripherals,
     i2c::{self, I2c},
@@ -14,7 +13,7 @@ use embassy_stm32::{
     time::Hertz,
     spi::{self, Spi},
 };
-use crate::drivers::Imu;
+use crate::{types::StatusLed, drivers::Imu};
 
 /// Alias for I2C driver.
 pub type I2cDriver = I2c<'static, Async, i2c::mode::Master>;
@@ -34,6 +33,8 @@ pub struct SystemPeripherals {
     pub spi_ss: Output<'static>,
     /// IMU driver.
     pub imu: Imu,
+    /// ESP ready pin.
+    pub esp_ready: Input<'static>,
 }
 
 impl SystemPeripherals {
@@ -49,6 +50,7 @@ impl SystemPeripherals {
         let led_status_green_pin = p.PA10;
         let led_status_blue_pin = p.PA11;
         let builtin_led_pin = p.PC13;
+        let esp_ready_pin = p.PA0;
 
         let led_r = Output::new(led_status_red_pin, Level::High, Speed::Low);
         let led_g = Output::new(led_status_green_pin, Level::High, Speed::Low);
@@ -100,8 +102,9 @@ impl SystemPeripherals {
         );
         
         let imu = Imu::new(i2c).await;
+        let esp_ready = Input::new(esp_ready_pin, Pull::Down);
 
-        Self { builtin_led, status_led, spi, spi_ss, imu }
+        Self { builtin_led, status_led, spi, spi_ss, imu, esp_ready }
     }
 }
 
