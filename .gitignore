@@ -5,6 +5,7 @@
 .idea/
 target/
 tmp/
+configs/
 
 *.bin
 *.txt

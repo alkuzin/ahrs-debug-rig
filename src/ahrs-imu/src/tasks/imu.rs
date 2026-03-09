@@ -28,8 +28,10 @@ pub async fn get_imu_sample() -> Sample {
 /// - `imu` - given IMU driver to handle.
 #[embassy_executor::task]
 pub async fn imu_acquisition_task(mut imu: Imu) {
+    let delay_ms = u64::from(1000 / crate::SAMPLE_RATE_HZ);
+
     loop {
-        Timer::after_millis(5).await;
+        Timer::after_millis(delay_ms).await;
 
         match imu.read_all().await {
             Ok(data) => {
