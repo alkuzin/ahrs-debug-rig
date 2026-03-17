@@ -6,10 +6,10 @@
 use crate::{
     tasks::status::set_system_status,
     types::{Sample, SystemStatus, ImuChannel},
-    drivers::Imu,
+    hal::Imu,
 };
 use embassy_sync::channel::Channel;
-use embassy_time::{Instant, Timer};
+use embassy_time::{Duration, Instant, Timer};
 
 /// IMU communication channel.
 static IMU_CHANNEL: ImuChannel = Channel::new();
@@ -28,10 +28,10 @@ pub async fn get_imu_sample() -> Sample {
 /// - `imu` - given IMU driver to handle.
 #[embassy_executor::task]
 pub async fn imu_acquisition_task(mut imu: Imu) {
-    let delay_ms = u64::from(1000 / crate::SAMPLE_RATE_HZ);
+    let delay = Duration::from_hz(u64::from(crate::SAMPLE_RATE_HZ));
 
     loop {
-        Timer::after_millis(delay_ms).await;
+        Timer::after(delay).await;
 
         match imu.read_all().await {
             Ok(data) => {

@@ -18,5 +18,5 @@ runner = "probe-rs run --chip STM32F401CCUx"
 
 # Enviroment variables configuration section.
 [env]
-# Display all logs.
-DEFMT_LOG = "trace"
+# Display logs.
+DEFMT_LOG = "info"
