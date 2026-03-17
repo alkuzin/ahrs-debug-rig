@@ -11,9 +11,9 @@ use embassy_stm32::{
     i2c::{self, I2c},
     mode::Async,
     time::Hertz,
-    spi::{self, Spi},
+    spi::{self, Spi}
 };
-use crate::{types::StatusLed, drivers::Imu};
+use crate::types::StatusLed;
 
 /// Alias for I2C driver.
 pub type I2cDriver = I2c<'static, Async, i2c::mode::Master>;
@@ -31,8 +31,8 @@ pub struct SystemPeripherals {
     pub spi: SpiDriver,
     /// SPI slave select.
     pub spi_ss: Output<'static>,
-    /// IMU driver.
-    pub imu: Imu,
+    /// I2C driver.
+    pub i2c: I2cDriver,
     /// ESP ready pin.
     pub esp_ready: Input<'static>,
 }
@@ -63,11 +63,14 @@ impl SystemPeripherals {
         let mut i2c_cfg = i2c::Config::default();
         // I2C fast mode (400 kHz).
         i2c_cfg.frequency = Hertz(400_000);
+        i2c_cfg.gpio_speed = Speed::High;
+        i2c_cfg.sda_pullup = true;
+        i2c_cfg.scl_pullup = true;
 
         let i2c_scl = p.PB6;
         let i2c_sda = p.PB7;
         let i2c_tx_dma = p.DMA1_CH6;
-        let i2d_rx_dma = p.DMA1_CH5;
+        let i2c_rx_dma = p.DMA1_CH5;
 
         let i2c = I2c::new(
             p.I2C1,
@@ -75,7 +78,7 @@ impl SystemPeripherals {
             i2c_sda,
             Irqs,
             i2c_tx_dma,
-            i2d_rx_dma,
+            i2c_rx_dma,
             i2c_cfg,
         );
 
@@ -101,10 +104,9 @@ impl SystemPeripherals {
             spi_cfg,
         );
         
-        let imu = Imu::new(i2c).await;
         let esp_ready = Input::new(esp_ready_pin, Pull::Down);
 
-        Self { builtin_led, status_led, spi, spi_ss, imu, esp_ready }
+        Self { builtin_led, status_led, spi, spi_ss, i2c, esp_ready }
     }
 }
 
