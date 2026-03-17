@@ -3,6 +3,7 @@
 
 //! Common types declarations.
 
+use core::{error, result, fmt::{Display, Formatter}};
 use crate::drivers::RgbLed;
 use embassy_stm32::gpio::Output;
 use embassy_sync::{
@@ -40,3 +41,23 @@ pub type Sample = ImuSample<Imu6>;
 
 /// Alias for IMU communication channel.
 pub type ImuChannel = Channel<CriticalSectionRawMutex, Sample, 4>;
+
+/// System errors enumeration.
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    /// I2C error.
+    I2cError,
+    /// Async operation timeout.
+    Timeout,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl error::Error for Error {}
+
+/// Result alias.
+pub type Result<T> = result::Result<T, Error>;
