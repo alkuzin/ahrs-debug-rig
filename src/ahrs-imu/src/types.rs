@@ -49,6 +49,8 @@ pub enum Error {
     I2cError,
     /// Async operation timeout.
     Timeout,
+    /// INDTP protocol error.
+    ProtocolError,
 }
 
 impl Display for Error {
@@ -61,3 +63,9 @@ impl error::Error for Error {}
 
 /// Result alias.
 pub type Result<T> = result::Result<T, Error>;
+
+impl From<indtp::Error> for Error {
+    fn from(_: indtp::Error) -> Self {
+        Error::ProtocolError
+    }
+}
