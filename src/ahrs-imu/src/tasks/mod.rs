@@ -3,6 +3,6 @@
 
 //! Firmware's asynchronous tasks.
 
-pub mod status;
 pub mod imu;
+pub mod status;
 pub mod transfer;

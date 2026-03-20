@@ -3,8 +3,8 @@
 
 //! IMU handler drivers.
 
-mod rgb_led;
 mod mpu6050;
+mod rgb_led;
 
-pub use rgb_led::RgbLed;
 pub use mpu6050::Mpu6050;
+pub use rgb_led::RgbLed;

@@ -3,14 +3,17 @@
 
 //! Common types declarations.
 
-use core::{error, result, fmt::{Display, Formatter}};
 use crate::drivers::RgbLed;
+use core::{
+    error,
+    fmt::{Display, Formatter},
+    result,
+};
 use embassy_stm32::gpio::Output;
 use embassy_sync::{
-    blocking_mutex::raw::CriticalSectionRawMutex,
-    channel::Channel
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel,
 };
-use indtp::payload::{Payload, Imu6};
+use indtp::payload::{Imu6, Payload};
 
 /// Status RGB LED alias.
 pub type StatusLed<'a> = RgbLed<Output<'a>, Output<'a>, Output<'a>>;
@@ -44,6 +47,7 @@ pub type ImuChannel = Channel<CriticalSectionRawMutex, Sample, 4>;
 
 /// System errors enumeration.
 #[derive(Debug, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum Error {
     /// I2C error.
     I2cError,

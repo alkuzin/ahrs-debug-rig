@@ -3,9 +3,12 @@
 
 //! MPU-6050 driver implementation.
 
-use crate::{prelude::*, hal::peripherals::I2cDriver};
-use embassy_time::{with_timeout, Duration};
-use indtp::{payload::{Imu3Acc, Imu3Gyr, Imu6}, types::F32};
+use crate::{hal::peripherals::I2cDriver, prelude::*};
+use embassy_time::{Duration, with_timeout};
+use indtp::{
+    payload::{Imu3Acc, Imu3Gyr, Imu6},
+    types::F32,
+};
 
 /// MPU-6050 registers enumeration.
 #[repr(u8)]
@@ -211,8 +214,10 @@ impl Mpu6050 {
 
         match with_timeout(
             MPU6050_TIMEOUT,
-            self.i2c.write_read(Self::ADDRESS, &[reg], &mut buffer)
-        ).await {
+            self.i2c.write_read(Self::ADDRESS, &[reg], &mut buffer),
+        )
+        .await
+        {
             Ok(Ok(())) => Ok(buffer[0]),
             Ok(Err(_)) => Err(Error::I2cError),
             Err(_) => Err(Error::Timeout),
@@ -235,8 +240,10 @@ impl Mpu6050 {
     async fn write(&mut self, reg: u8, val: u8) -> Result<()> {
         match with_timeout(
             MPU6050_TIMEOUT,
-            self.i2c.write(Self::ADDRESS, &[reg, val])
-        ).await {
+            self.i2c.write(Self::ADDRESS, &[reg, val]),
+        )
+        .await
+        {
             Ok(Ok(())) => Ok(()),
             Ok(Err(_)) => Err(Error::I2cError),
             Err(_) => Err(Error::Timeout),

@@ -3,15 +3,20 @@
 
 //! IMU readings transfer task related declarations.
 
-use core::sync::atomic::{self, AtomicU32};
-use embassy_stm32::gpio::{Input, Output};
-use embassy_time::{with_timeout, Duration, Timer};
-use indtp::{engines::{SwCryptoEngine, SwIntegrityEngine}, Frame, payload::PayloadType, types::Packable};
 use crate::{
-    prelude::*,
     hal::peripherals::SpiDriver,
+    prelude::*,
     tasks::{imu::get_imu_sample, status::set_system_status},
     types::SystemStatus,
+};
+use core::sync::atomic::{self, AtomicU32};
+use embassy_stm32::gpio::{Input, Output};
+use embassy_time::{Duration, Timer, with_timeout};
+use indtp::{
+    Frame,
+    engines::{SwCryptoEngine, SwIntegrityEngine},
+    payload::PayloadType,
+    types::Packable,
 };
 
 /// SPI timeout in ms.
@@ -24,9 +29,8 @@ const IDLE_WAIT: Duration = Duration::from_millis(2);
 const AGGREGATION_SIZE: usize = 5;
 
 /// Data aggregation timeout in ms.
-pub const AGGREGATION_TIMEOUT: u32 = {
-    (AGGREGATION_SIZE as u32 * 1000 / crate::SAMPLE_RATE_HZ as u32) + 10
-};
+pub const AGGREGATION_TIMEOUT: u32 =
+    (AGGREGATION_SIZE as u32 * 1000 / crate::SAMPLE_RATE_HZ as u32) + 10;
 
 /// Data aggregation timeout.
 const TIMEOUT: Duration = Duration::from_millis(AGGREGATION_TIMEOUT as u64);
@@ -60,26 +64,25 @@ pub async fn transfer_data_task(
     loop {
         if esp_ready.is_high() {
             let size = pack_frame(&mut buffer).await;
-
             spi_ss.set_low();
 
             if let Ok(size) = size {
-                match with_timeout(SPI_TIMEOUT, spi.write(&buffer[..size])).await {
+                #[allow(clippy::indexing_slicing)]
+                let data = &buffer[..size];
+
+                match with_timeout(SPI_TIMEOUT, spi.write(data)).await {
                     Ok(Ok(())) => set_system_status(SystemStatus::Ok).await,
-                    Ok(Err(_)) => set_system_status(SystemStatus::Warning).await,
-                    Err(_) => {
-                        defmt::warn!("SPI write timeout");
-                        set_system_status(SystemStatus::Warning).await;
+                    Ok(Err(_)) => {
+                        set_system_status(SystemStatus::Warning).await
                     }
+                    Err(_) => set_system_status(SystemStatus::Warning).await,
                 }
-            }
-            else {
+            } else {
                 set_system_status(SystemStatus::Error).await;
             }
 
             spi_ss.set_high();
-        }
-        else {
+        } else {
             Timer::after(IDLE_WAIT).await;
         }
     }
@@ -100,11 +103,8 @@ pub async fn transfer_data_task(
 /// - Parse errors.
 /// - Invalid operation.
 async fn pack_frame(buffer: &mut [u8]) -> Result<usize> {
-    let mut frame = Frame::new_lite(
-        buffer,
-        crate::DEVICE_ID,
-        PayloadType::Imu6.into(),
-    )?;
+    let mut frame =
+        Frame::new_lite(buffer, crate::DEVICE_ID, PayloadType::Imu6.into())?;
 
     frame.set_batch(true);
     frame.set_sequence(get_next_sequence() as u16);
@@ -114,18 +114,20 @@ async fn pack_frame(buffer: &mut [u8]) -> Result<usize> {
     let collect = async {
         for _ in 0..AGGREGATION_SIZE {
             let sample = get_imu_sample().await;
-            batch.push_sample(sample.timestamp, &sample.data.to_bytes())?;
+            batch.push_sample(sample.timestamp, sample.data.to_bytes())?;
         }
         Ok::<(), indtp::Error>(())
     };
 
     match with_timeout(TIMEOUT, collect).await {
-        Ok(Ok(())) => {},
+        Ok(Ok(())) => {}
         Ok(Err(e)) => return Err(e.into()),
         Err(_) => return Err(Error::Timeout),
     };
 
     drop(batch);
 
-    frame.pack::<SwIntegrityEngine, SwCryptoEngine>(None).map_err(|e| e.into())
+    frame
+        .pack::<SwIntegrityEngine, SwCryptoEngine>(None)
+        .map_err(|e| e.into())
 }

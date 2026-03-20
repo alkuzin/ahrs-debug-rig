@@ -3,17 +3,16 @@
 
 //! MCU peripherals related declarations.
 
+use crate::types::StatusLed;
 use embassy_stm32::{
-    Peripherals,
-    gpio::{Level, Output, Speed, Input, Pull},
-    bind_interrupts,
-    peripherals,
+    Peripherals, bind_interrupts,
+    gpio::{Input, Level, Output, Pull, Speed},
     i2c::{self, I2c},
     mode::Async,
+    peripherals,
+    spi::{self, Spi},
     time::Hertz,
-    spi::{self, Spi}
 };
-use crate::types::StatusLed;
 
 /// Alias for I2C driver.
 pub type I2cDriver = I2c<'static, Async, i2c::mode::Master>;
@@ -73,13 +72,7 @@ impl SystemPeripherals {
         let i2c_rx_dma = p.DMA1_CH5;
 
         let i2c = I2c::new(
-            p.I2C1,
-            i2c_scl,
-            i2c_sda,
-            Irqs,
-            i2c_tx_dma,
-            i2c_rx_dma,
-            i2c_cfg,
+            p.I2C1, i2c_scl, i2c_sda, Irqs, i2c_tx_dma, i2c_rx_dma, i2c_cfg,
         );
 
         // Setting SPI.
@@ -87,7 +80,7 @@ impl SystemPeripherals {
         // SPI frequency (8 MHz).
         spi_cfg.frequency = Hertz(8_000_000);
 
-        let spi_sck =  p.PA5;
+        let spi_sck = p.PA5;
         let spi_miso = p.PA6;
         let spi_mosi = p.PA7;
         let spi_ss = Output::new(p.PA4, Level::High, Speed::VeryHigh);
@@ -95,18 +88,20 @@ impl SystemPeripherals {
         let spi_rx_dma = p.DMA2_CH2;
 
         let spi = Spi::new(
-            p.SPI1,
-            spi_sck,
-            spi_mosi,
-            spi_miso,
-            spi_tx_dma,
-            spi_rx_dma,
+            p.SPI1, spi_sck, spi_mosi, spi_miso, spi_tx_dma, spi_rx_dma,
             spi_cfg,
         );
-        
+
         let esp_ready = Input::new(esp_ready_pin, Pull::Down);
 
-        Self { builtin_led, status_led, spi, spi_ss, i2c, esp_ready }
+        Self {
+            builtin_led,
+            status_led,
+            spi,
+            spi_ss,
+            i2c,
+            esp_ready,
+        }
     }
 }
 

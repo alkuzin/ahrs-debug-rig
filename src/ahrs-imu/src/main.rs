@@ -5,7 +5,7 @@
 
 #![no_std]
 #![no_main]
-#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
+#![warn(clippy::all, clippy::correctness, clippy::suspicious)]
 #![deny(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -23,14 +23,15 @@ mod tasks;
 mod types;
 
 use crate::{
-    hal::{peripherals::SystemPeripherals, Imu},
+    hal::{Imu, peripherals::SystemPeripherals},
     tasks::{
-        status::{system_status_task, set_system_status},
         imu::imu_acquisition_task,
+        status::{set_system_status, system_status_task},
         transfer::transfer_data_task,
     },
     types::SystemStatus,
 };
+use cortex_m::asm::wfi;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_stm32::{Config, Peripherals};
@@ -63,10 +64,12 @@ async fn main(spawner: Spawner) -> ! {
     // Spawning task for handling IMU data acquisition.
     let imu = match Imu::new(sp.i2c).await {
         Ok(i) => i,
-        Err(e) => {
+        Err(_) => {
             set_system_status(SystemStatus::Error).await;
-            panic!("{e}");
-        },
+            loop {
+                wfi()
+            }
+        }
     };
 
     let _ = spawner.spawn(imu_acquisition_task(imu));

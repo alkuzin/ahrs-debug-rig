@@ -4,9 +4,9 @@
 //! IMU readings acquisition task related declarations.
 
 use crate::{
-    tasks::status::set_system_status,
-    types::{Sample, SystemStatus, ImuChannel},
     hal::Imu,
+    tasks::status::set_system_status,
+    types::{ImuChannel, Sample, SystemStatus},
 };
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Instant, Timer};
@@ -42,7 +42,7 @@ pub async fn imu_acquisition_task(mut imu: Imu) {
 
                 IMU_CHANNEL.send(sample).await;
                 set_system_status(SystemStatus::Ok).await;
-            },
+            }
             Err(_) => set_system_status(SystemStatus::Error).await,
         }
     }

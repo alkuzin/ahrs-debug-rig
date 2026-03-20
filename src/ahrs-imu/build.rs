@@ -3,7 +3,11 @@
 
 //! STM32 firmware build related declarations.
 
-use std::{env, fs, path::{Path, PathBuf}, process};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process,
+};
 
 /// Path for generated firmware configs.
 const FIRMWARE_DIR: &str = "../configs/firmware";
@@ -19,13 +23,20 @@ fn main() {
     let dest_file = PathBuf::from(&out_dir).join(STM32_CONFIG_PATH);
 
     if !config_dir.is_dir() {
-        eprintln!("cargo:warning=Build error: configs/firmware/ directory was not found");
-        eprintln!("Generate configs using AHRS Monitor & copy it into the src/ directory");
+        eprintln!(
+            "cargo:warning=Build error: configs/firmware/ directory was not found"
+        );
+        eprintln!(
+            "Generate configs using AHRS Monitor & copy it into the src/ directory"
+        );
         process::exit(1);
     }
 
     if !source_file.exists() {
-        eprintln!("cargo:warning=Build error: file {} was not found", source_file.display());
+        eprintln!(
+            "cargo:warning=Build error: file {} was not found",
+            source_file.display()
+        );
         process::exit(1);
     }
 

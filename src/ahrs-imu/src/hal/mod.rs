@@ -3,7 +3,7 @@
 
 //! Hardware abstraction layer.
 
-pub mod peripherals;
 mod imu;
+pub mod peripherals;
 
 pub use imu::Imu;
