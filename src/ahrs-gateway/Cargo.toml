@@ -12,11 +12,6 @@ license      = "Apache-2.0"
 edition      = "2024"
 rust-version = "1.88"
 
-# Project binary info section.
-[[bin]]
-name = "ahrs-gateway"
-path = "./src/bin/main.rs"
-
 # Project package info section.
 [dependencies]
 # Bare-metal (no_std) HAL for all Espressif ESP32 devices.
