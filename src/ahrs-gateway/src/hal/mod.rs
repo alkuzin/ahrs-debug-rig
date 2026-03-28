@@ -3,6 +3,9 @@
 
 //! Hardware abstraction layer.
 
+mod led;
+pub use led::StatusLed;
+
 use esp_hal::{
     gpio::{Level, Output, OutputConfig},
     peripherals::Peripherals,
@@ -13,6 +16,8 @@ use esp_hal::{
 pub struct SystemPeripherals {
     /// Builtin LED handler.
     pub builtin_led: Output<'static>,
+    /// Status LEDs handler.
+    pub status_led: StatusLed<'static>,
 }
 
 impl SystemPeripherals {
@@ -29,12 +34,16 @@ impl SystemPeripherals {
         let timg0 = TimerGroup::new(p.TIMG0);
         esp_rtos::start(timg0.timer0);
 
-        let builtin_led_pin = p.GPIO2;
         let config = OutputConfig::default();
-        let builtin_led = Output::new(builtin_led_pin, Level::High, config);
+
+        let builtin_led = Output::new(p.GPIO2, Level::High, config);
+        let status_led_red = Output::new(p.GPIO4, Level::High, config);
+        let status_led_green = Output::new(p.GPIO16, Level::High, config);
+        let status_led = StatusLed::new(status_led_red, status_led_green);
 
         Self {
             builtin_led,
+            status_led,
         }
     }
 }

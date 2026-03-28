@@ -40,6 +40,8 @@ embassy-net = { version = "0.7.1", features = [
   "tcp",
   "udp",
 ] }
+# A Hardware Abstraction Layer (HAL) for embedded systems.
+embedded-hal = "1.0.0"
 # Input/Output traits for embedded systems.
 embedded-io = "0.7.1"
 # Async IO traits for embedded systems.

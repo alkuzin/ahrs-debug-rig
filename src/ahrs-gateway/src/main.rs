@@ -31,11 +31,19 @@ esp_bootloader_esp_idf::esp_app_desc!();
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let p = esp_hal::init(config);
-    let mut sp = SystemPeripherals::new(p);
+    let mut sp = SystemPeripherals::new(esp_hal::init(config));
 
     loop {
         sp.builtin_led.toggle();
+        Timer::after(Duration::from_secs(1)).await;
+
+        sp.status_led.set_state(true, false);
+        Timer::after(Duration::from_secs(1)).await;
+
+        sp.status_led.set_state(false, true);
+        Timer::after(Duration::from_secs(1)).await;
+
+        sp.status_led.set_state(false, false);
         Timer::after(Duration::from_secs(1)).await;
     }
 }
