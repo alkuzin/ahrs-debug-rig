@@ -18,10 +18,16 @@
 )]
 
 pub mod hal;
+pub mod types;
+mod tasks;
 
-use crate::hal::SystemPeripherals;
+use crate::{
+    hal::SystemPeripherals,
+    tasks::status::{system_status_task, set_system_status},
+    types::SystemStatus
+};
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Ticker, Timer};
 use esp_hal::clock::CpuClock;
 use panic_halt as _;
 
@@ -29,18 +35,19 @@ use panic_halt as _;
 esp_bootloader_esp_idf::esp_app_desc!();
 
 #[esp_rtos::main]
-async fn main(_spawner: Spawner) -> ! {
+async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let mut sp = SystemPeripherals::new(esp_hal::init(config)).await;
+    let sp = SystemPeripherals::new(esp_hal::init(config)).await;
+
+    // Spawning task for handling system status update.
+    let ticker = Ticker::every(Duration::from_millis(10));
+    let _ = spawner.spawn(system_status_task(sp.status_led, ticker));
 
     loop {
-        sp.status_led.set_state(true, false);
-        Timer::after(Duration::from_secs(1)).await;
+        set_system_status(SystemStatus::Ok).await;
+        Timer::after(Duration::from_millis(1000)).await;
 
-        sp.status_led.set_state(false, true);
-        Timer::after(Duration::from_secs(1)).await;
-
-        sp.status_led.set_state(false, false);
-        Timer::after(Duration::from_secs(1)).await;
+        set_system_status(SystemStatus::Error).await;
+        Timer::after(Duration::from_millis(500)).await;
     }
 }

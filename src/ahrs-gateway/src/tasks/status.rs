@@ -1,0 +1,58 @@
+// SPDX-License-Identifier: Apache-2.0.
+// Copyright (C) 2026-present ahrs-debug-rig project and contributors.
+
+//! AHRS gateway firmware status related declarations.
+
+use crate::{types::SystemStatus, hal::StatusLed};
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex,
+};
+use embassy_time::Ticker;
+
+/// Current system status.
+static SYSTEM_STATUS: Mutex<CriticalSectionRawMutex, SystemStatus> =
+    Mutex::new(SystemStatus::Ok);
+
+/// Set current system status.
+///
+/// # Parameters
+/// - `status` - given system status to set.
+pub async fn set_system_status(status: SystemStatus) {
+    let system_status = &mut *SYSTEM_STATUS.lock().await;
+    *system_status = status;
+}
+
+/// Get current system status.
+///
+/// # Returns
+/// - Current system status.
+pub async fn get_system_status() -> SystemStatus {
+    let system_status = &*SYSTEM_STATUS.lock().await;
+    *system_status
+}
+
+/// Task for handling system status update.
+///
+/// # Parameters
+/// - `led` - given status led to handle.
+/// - `ticker` - given status ticker to handle.
+#[embassy_executor::task]
+pub async fn system_status_task(
+    mut led: StatusLed<'static>,
+    mut ticker: Ticker,
+) {
+    loop {
+        // Waiting for the next tick.
+        ticker.next().await;
+
+        // Handling current system status.
+        let status = get_system_status().await;
+
+        match status {
+            // Green color.
+            SystemStatus::Ok => led.set_state(true, false),
+            // Red color.
+            SystemStatus::Error => led.set_state(false, true),
+        }
+    }
+}
