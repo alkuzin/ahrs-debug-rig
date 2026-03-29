@@ -19,7 +19,7 @@ static FRAME_CHANNEL: FrameChannel = Channel::new();
 ///
 /// # Returns
 /// - Current frame.
-pub async fn get_raw_frame() -> FrameMessage {
+pub async fn get_frame_message() -> FrameMessage {
     FRAME_CHANNEL.receive().await
 }
 

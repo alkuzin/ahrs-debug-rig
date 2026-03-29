@@ -23,14 +23,17 @@ mod tasks;
 
 use crate::{
     hal::SystemPeripherals,
-    tasks::status::{system_status_task, set_system_status},
+    tasks::{
+        status::{system_status_task, set_system_status},
+        recv::frame_acquisition_task,
+        transfer::transfer_data_task
+    },
     types::SystemStatus
 };
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Ticker, Timer};
 use esp_hal::clock::CpuClock;
 use panic_halt as _;
-use crate::tasks::recv::frame_acquisition_task;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -43,10 +46,11 @@ async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let sp = SystemPeripherals::new(esp_hal::init(config)).await;
 
-    // Spawning task for handling system status update.
     let ticker = Ticker::every(Duration::from_millis(10));
+
     let _ = spawner.spawn(system_status_task(sp.status_led, ticker));
     let _ = spawner.spawn(frame_acquisition_task(sp.spi, sp.dma_rx_buf, sp.esp_ready));
+    let _ = spawner.spawn(transfer_data_task());
 
     loop {
         set_system_status(SystemStatus::Ok).await;
