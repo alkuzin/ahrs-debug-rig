@@ -1,13 +1,54 @@
 // SPDX-License-Identifier: Apache-2.0.
 // Copyright (C) 2026-present ahrs-debug-rig project and contributors.
 
+//! ESP32 firmware build related declarations.
+
+use std::{env, fs, process, path::{Path, PathBuf}};
+
+/// Path for generated firmware configs.
+const FIRMWARE_DIR: &str = "../configs/firmware";
+
+/// Path for generated firmware config for ESP32.
+const ESP32_CONFIG_PATH: &str = "esp32_config.rs";
+
 fn main() {
     linker_be_nice();
     println!("cargo:rustc-link-arg=-Tlinkall.x");
+
+    let config_dir = Path::new(FIRMWARE_DIR);
+    let source_file = config_dir.join(ESP32_CONFIG_PATH);
+
+    let out_dir = env::var("OUT_DIR").expect("Cannot get OUT_DIR");
+    let dest_file = PathBuf::from(&out_dir).join(ESP32_CONFIG_PATH);
+
+    if !config_dir.is_dir() {
+        eprintln!(
+            "cargo:warning=Build error: configs/firmware/ directory was not found"
+        );
+        eprintln!(
+            "Generate configs using AHRS Monitor & copy it into the src/ directory"
+        );
+        process::exit(1);
+    }
+
+    if !source_file.exists() {
+        eprintln!(
+            "cargo:warning=Build error: file {} was not found",
+            source_file.display()
+        );
+        process::exit(1);
+    }
+
+    if let Err(e) = fs::copy(&source_file, &dest_file) {
+        eprintln!("cargo:warning=Error to copy file: {e}");
+        process::exit(1);
+    }
+
+    println!("cargo:rerun-if-changed={}", source_file.display());
 }
 
 fn linker_be_nice() {
-    let args: Vec<String> = std::env::args().collect();
+    let args: Vec<String> = env::args().collect();
 
     if args.len() > 1 {
         let kind = &args[1];
@@ -45,14 +86,14 @@ fn linker_be_nice() {
                 }
                 _ => (),
             },
-            _ => std::process::exit(1),
+            _ => process::exit(1),
         }
 
-        std::process::exit(0);
+        process::exit(0);
     }
 
     println!(
         "cargo:rustc-link-arg=-Wl,--error-handling-script={}",
-        std::env::current_exe().unwrap().display()
+        env::current_exe().unwrap().display()
     );
 }
