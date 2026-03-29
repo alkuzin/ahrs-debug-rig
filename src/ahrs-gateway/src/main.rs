@@ -19,11 +19,11 @@
 
 pub mod hal;
 
+use crate::hal::SystemPeripherals;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
 use panic_halt as _;
-use crate::hal::SystemPeripherals;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -31,7 +31,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let mut sp = SystemPeripherals::new(esp_hal::init(config));
+    let mut sp = SystemPeripherals::new(esp_hal::init(config)).await;
 
     loop {
         sp.status_led.set_state(true, false);
