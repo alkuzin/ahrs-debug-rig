@@ -19,7 +19,7 @@ fn main() {
     let config_dir = Path::new(FIRMWARE_DIR);
     let source_file = config_dir.join(STM32_CONFIG_PATH);
 
-    let out_dir = env::var("OUT_DIR").expect("Не удалось получить OUT_DIR");
+    let out_dir = env::var("OUT_DIR").expect("Cannot get OUT_DIR");
     let dest_file = PathBuf::from(&out_dir).join(STM32_CONFIG_PATH);
 
     if !config_dir.is_dir() {

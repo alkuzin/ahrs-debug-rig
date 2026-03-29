@@ -23,7 +23,7 @@ where
     G: OutputPin,
     B: OutputPin,
 {
-    /// Construct new `LedStatus` object.
+    /// Construct new RGB LED object.
     ///
     /// # Parameters
     /// - `led_r` - given red LED pin.
@@ -33,7 +33,7 @@ where
     ///   or common cathode.
     ///
     /// # Returns
-    /// - New `LedStatus` object.
+    /// - New RGB LED object.
     pub const fn new(
         led_r: R,
         led_g: G,

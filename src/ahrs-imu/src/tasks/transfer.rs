@@ -30,7 +30,7 @@ const AGGREGATION_SIZE: usize = 5;
 
 /// Data aggregation timeout in ms.
 pub const AGGREGATION_TIMEOUT: u32 =
-    (AGGREGATION_SIZE as u32 * 1000 / crate::SAMPLE_RATE_HZ as u32) + 10;
+    (AGGREGATION_SIZE as u32 * 1000 / crate::SAMPLE_RATE_HZ as u32) + 20;
 
 /// Data aggregation timeout.
 const TIMEOUT: Duration = Duration::from_millis(AGGREGATION_TIMEOUT as u64);
