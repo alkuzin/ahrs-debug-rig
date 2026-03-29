@@ -53,6 +53,8 @@ pub async fn system_status_task(
             SystemStatus::Ok => led.set_state(true, false),
             // Red color.
             SystemStatus::Error => led.set_state(false, true),
+            // None.
+            SystemStatus::Default => led.set_state(false, false),
         }
     }
 }

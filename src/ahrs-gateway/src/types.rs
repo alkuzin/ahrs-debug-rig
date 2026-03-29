@@ -8,6 +8,8 @@ use core::{
     fmt::{Display, Formatter},
     result,
 };
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
+use crate::hal::DMA_BUFFER_SIZE;
 
 /// System status levels.
 #[derive(Copy, Clone)]
@@ -16,6 +18,8 @@ pub enum SystemStatus {
     Ok,
     /// Critical failure.
     Error,
+    /// Default state.
+    Default,
 }
 
 /// System errors enumeration.
@@ -44,3 +48,29 @@ impl From<indtp::Error> for Error {
         Error::ProtocolError
     }
 }
+
+/// Data frame message.
+pub struct FrameMessage {
+    /// Frame bytes.
+    pub data: [u8; DMA_BUFFER_SIZE],
+}
+
+impl FrameMessage {
+    /// Construct new frame message.
+    ///
+    /// # Parameters
+    /// - `buffer` - given frame buffer to handle.
+    ///
+    /// # Returns
+    /// - New frame message.
+    pub fn new(buffer: &[u8]) -> Self {
+        let mut data = [0u8; DMA_BUFFER_SIZE];
+        let size = data.len().min(DMA_BUFFER_SIZE);
+
+        data[..size].copy_from_slice(&buffer[..size]);
+        Self { data }
+    }
+}
+
+/// Alias for frame communication channel.
+pub type FrameChannel = Channel<CriticalSectionRawMutex, FrameMessage, 4>;
