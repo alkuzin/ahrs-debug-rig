@@ -25,10 +25,9 @@ use indtp::{
 pub async fn transfer_data_task() {
     let msg = get_frame_message().await;
 
-    match transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(msg).await {
-        Ok(_) => set_system_status(SystemStatus::Ok),
-        Err(_) => set_system_status(SystemStatus::Error),
-    }.await;
+    if let Err(_) = transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(msg).await {
+        set_system_status(SystemStatus::Error).await;
+    }
 }
 
 /// Repack & transfer frame.
@@ -68,7 +67,7 @@ where
         frame.set_batch(false);
         frame.push_single_sample(timestamp, sample.to_bytes())?;
 
-        let _ = frame.pack::<I, C>(None)?;
+        let _ = frame.pack::<I, C>(Some(&keys))?;
         let _packed_frame = frame.frame_mut()?;
 
         // TODO: transfer over WiFi

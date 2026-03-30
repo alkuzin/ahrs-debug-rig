@@ -14,12 +14,12 @@ use crate::hal::DMA_BUFFER_SIZE;
 /// System status levels.
 #[derive(Copy, Clone)]
 pub enum SystemStatus {
-    /// All subsystems operational.
-    Ok,
+    /// Wi-Fi is enabled.
+    WiFiEnabled,
     /// Critical failure.
     Error,
     /// Default state.
-    Default,
+    Idle,
 }
 
 /// System errors enumeration.

@@ -11,7 +11,7 @@ use embassy_time::Ticker;
 
 /// Current system status.
 static SYSTEM_STATUS: Mutex<CriticalSectionRawMutex, SystemStatus> =
-    Mutex::new(SystemStatus::Ok);
+    Mutex::new(SystemStatus::Idle);
 
 /// Set current system status.
 ///
@@ -50,11 +50,11 @@ pub async fn system_status_task(
 
         match status {
             // Green color.
-            SystemStatus::Ok => led.set_state(true, false),
+            SystemStatus::WiFiEnabled => led.set_state(true, false),
             // Red color.
             SystemStatus::Error => led.set_state(false, true),
             // None.
-            SystemStatus::Default => led.set_state(false, false),
+            SystemStatus::Idle => led.set_state(false, false),
         }
     }
 }

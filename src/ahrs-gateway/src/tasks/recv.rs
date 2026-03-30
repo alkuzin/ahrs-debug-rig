@@ -41,7 +41,7 @@ pub async fn frame_acquisition_task(
                 loop {
                     set_system_status(SystemStatus::Error).await;
                     Timer::after(Duration::from_millis(100)).await;
-                    set_system_status(SystemStatus::Default).await;
+                    set_system_status(SystemStatus::Idle).await;
                 }
             },
         };

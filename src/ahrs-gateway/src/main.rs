@@ -53,7 +53,7 @@ async fn main(spawner: Spawner) -> ! {
     let _ = spawner.spawn(transfer_data_task());
 
     loop {
-        set_system_status(SystemStatus::Ok).await;
+        set_system_status(SystemStatus::Idle).await;
         Timer::after(Duration::from_millis(1000)).await;
 
         set_system_status(SystemStatus::Error).await;
