@@ -47,6 +47,16 @@ fn get_next_sequence() -> u32 {
     SEQUENCE.fetch_add(1, atomic::Ordering::Relaxed)
 }
 
+/// Aligned buffer for DMA.
+#[repr(align(32))]
+struct AlignedBuffer<T>(pub T);
+
+/// Size of DMA buffer in bytes.
+const DMA_BUFFER_SIZE: usize = 56;
+
+/// Static DMA buffer.
+static mut DMA_BUFFER: AlignedBuffer<[u8; DMA_BUFFER_SIZE]> = AlignedBuffer([0u8; DMA_BUFFER_SIZE]);
+
 /// Task for handling IMU data transfer.
 ///
 /// # Parameters
@@ -59,29 +69,30 @@ pub async fn transfer_data_task(
     mut spi_ss: Output<'static>,
     esp_ready: Input<'static>,
 ) {
-    let mut buffer = [0u8; 256];
+    let mut buffer = unsafe { DMA_BUFFER.0 };
 
     loop {
         if esp_ready.is_high() {
-            let size = pack_frame(&mut buffer).await;
-            spi_ss.set_low();
+            buffer.fill(0);
 
-            if let Ok(size) = size {
-                #[allow(clippy::indexing_slicing)]
-                let data = &buffer[..size];
+            if let Ok(size) = pack_frame(&mut buffer).await {
+                spi_ss.set_low();
+                Timer::after(Duration::from_micros(1)).await;
 
-                match with_timeout(SPI_TIMEOUT, spi.write(data)).await {
-                    Ok(Ok(())) => set_system_status(SystemStatus::Ok).await,
-                    Ok(Err(_)) => {
-                        set_system_status(SystemStatus::Warning).await
-                    }
-                    Err(_) => set_system_status(SystemStatus::Warning).await,
+                match with_timeout(SPI_TIMEOUT, spi.write(&buffer[..size])).await {
+                    Ok(Ok(())) => {
+                        // Guard interval.
+                        Timer::after(Duration::from_micros(20)).await;
+                        set_system_status(SystemStatus::Ok).await
+                    },
+                    _ => set_system_status(SystemStatus::Warning).await,
                 }
             } else {
                 set_system_status(SystemStatus::Error).await;
             }
 
             spi_ss.set_high();
+
         } else {
             Timer::after(IDLE_WAIT).await;
         }
@@ -106,16 +117,11 @@ async fn pack_frame(buffer: &mut [u8]) -> Result<usize> {
     let mut frame =
         Frame::new_lite(buffer, crate::DEVICE_ID, PayloadType::Imu6.into())?;
 
-    frame.set_batch(true);
     frame.set_sequence(get_next_sequence() as u16);
 
-    let mut batch = frame.start_batch()?;
-
     let collect = async {
-        for _ in 0..AGGREGATION_SIZE {
-            let sample = get_imu_sample().await;
-            batch.push_sample(sample.timestamp, sample.data.to_bytes())?;
-        }
+        let sample = get_imu_sample().await;
+        frame.push_single_sample(sample.timestamp, sample.data.to_bytes())?;
         Ok::<(), indtp::Error>(())
     };
 
@@ -124,8 +130,6 @@ async fn pack_frame(buffer: &mut [u8]) -> Result<usize> {
         Ok(Err(e)) => return Err(e.into()),
         Err(_) => return Err(Error::Timeout),
     };
-
-    drop(batch);
 
     frame
         .pack::<SwIntegrityEngine, SwCryptoEngine>(None)
