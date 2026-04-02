@@ -3,30 +3,54 @@
 
 //! Frame transfer over WiFi task related declarations.
 
+use core::str::FromStr;
+use embassy_net::{Stack, udp::UdpSocket};
 use crate::{
     tasks::{status::set_system_status, recv::get_frame_message},
-    types::{Result, FrameMessage, SystemStatus},
+    types::{self, FrameMessage, SystemStatus, Error},
     hal::DMA_BUFFER_SIZE,
 };
 use indtp::{
     Frame,
     engines::{SwCryptoEngine, SwIntegrityEngine, CryptographyEngine, IntegrityEngine},
-    types::{Packable, CryptoKeys},
-    payload::Imu6,
+    types::CryptoKeys,
 };
+use smoltcp::wire::{IpAddress, IpEndpoint};
 
 /// Task for handling IMU data transfer.
 ///
 /// # Parameters
-/// - `spi` - given SPI driver to handle.
-/// - `spi_ss` - given SPI slave select to handle.
-/// - `esp_ready` - given ESP ready pin to handle.
+/// - `net_stack` - given network stack to handle.
 #[embassy_executor::task]
-pub async fn transfer_data_task() {
-    let msg = get_frame_message().await;
+pub async fn transfer_data_task(net_stack: Stack<'static>) {
+    let mut rx_meta = [embassy_net::udp::PacketMetadata::EMPTY; 1];
+    let mut rx_buffer = [0u8; 256]; // 256
+    let mut tx_meta = [embassy_net::udp::PacketMetadata::EMPTY; 1];
+    let mut tx_buffer = [0u8; 256]; // 512
 
-    if let Err(_) = transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(msg).await {
+    let mut socket = UdpSocket::new(
+        net_stack,
+        &mut rx_meta,
+        &mut rx_buffer,
+        &mut tx_meta,
+        &mut tx_buffer,
+    );
+
+    let monitor_ip = IpAddress::from_str(crate::MONITOR_IP.trim())
+        .unwrap_or(IpAddress::v4(0, 0, 0, 0));
+    let endpoint = IpEndpoint::new(monitor_ip, crate::MONITOR_PORT);
+
+    if let Err(e) = socket.bind(0) {
         set_system_status(SystemStatus::Error).await;
+        panic!("failed to bind socket: {:?}", e);
+    }
+
+    loop {
+        let msg = get_frame_message().await;
+
+        if let Err(_) = transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(msg, &socket, endpoint).await {
+            set_system_status(SystemStatus::Error).await;
+        }
     }
 }
 
@@ -34,6 +58,8 @@ pub async fn transfer_data_task() {
 ///
 /// # Parameters
 /// - `msg` - given frame message to handle.
+/// - `socket` - given UDP socket to handle.
+/// - `endpoint` - given AHRS Monitor endpoint.
 ///
 /// # Returns
 /// - `Ok` - in case of success.
@@ -44,18 +70,16 @@ pub async fn transfer_data_task() {
 /// - Buffer overflow.
 /// - Parse errors.
 /// - Invalid operation.
-async fn transfer_frame<I, C>(mut msg: FrameMessage) -> Result<()>
+async fn transfer_frame<I, C>(mut msg: FrameMessage, socket: &UdpSocket<'_>, endpoint: IpEndpoint) -> types::Result<()>
 where
     I: IntegrityEngine,
     C: CryptographyEngine,
 {
     let keys = CryptoKeys::new(*crate::AES_KEY, *crate::HMAC_KEY);
-    let received_frame = Frame::parse::<I, C>(msg.data.as_mut_slice(), Some(&keys))?;
-    let iterator = received_frame.read_batch_samples(size_of::<Imu6>())?;
+    let data = msg.data.as_mut_slice();
 
-    for (_, result) in iterator.enumerate() {
-        let (timestamp, data) = result?;
-        let sample = Imu6::from_bytes(data)?;
+    if let Ok(received_frame) = Frame::parse::<I, C>(data, None) {
+        let (timestamp, sample) = received_frame.read_single_sample()?;
 
         let mut buffer = [0u8; DMA_BUFFER_SIZE];
         let mut frame = Frame::new_trusted(
@@ -65,12 +89,15 @@ where
         )?;
 
         frame.set_batch(false);
-        frame.push_single_sample(timestamp, sample.to_bytes())?;
+        frame.set_encrypted(true);
+        frame.push_single_sample(timestamp, sample)?;
 
         let _ = frame.pack::<I, C>(Some(&keys))?;
-        let _packed_frame = frame.frame_mut()?;
+        let frame_to_send = frame.frame()?;
 
-        // TODO: transfer over WiFi
+        if let Err(_) = socket.send_to(frame_to_send, endpoint).await {
+            return Err(Error::NetworkError);
+        }
     }
 
     Ok(())
