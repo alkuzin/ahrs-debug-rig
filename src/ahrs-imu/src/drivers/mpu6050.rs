@@ -49,6 +49,12 @@ enum Register {
     GyroZOutL = 0x48,
 }
 
+/// Accelerometer LSB sensitivity (+-2g).
+const ACCEL_LSB_SENS: f32 = 16384.0;
+
+/// Gyroscope LSB sensitivity (+-2000 deg/s).
+const GYRO_LSB_SENS: f32 = 16.4;
+
 impl From<Register> for u8 {
     fn from(val: Register) -> Self {
         val as Self
@@ -122,18 +128,18 @@ impl Mpu6050 {
     /// # Errors
     /// - I2C errors.
     /// - Timeout.
-    pub async fn read_acc(&mut self) -> Result<(u16, u16, u16)> {
-        let acc_x = u16::from_be_bytes([
+    pub async fn read_acc(&mut self) -> Result<(i16, i16, i16)> {
+        let acc_x = i16::from_be_bytes([
             self.read(Register::AccelXOutH.into()).await?,
             self.read(Register::AccelXOutL.into()).await?,
         ]);
 
-        let acc_y = u16::from_be_bytes([
+        let acc_y = i16::from_be_bytes([
             self.read(Register::AccelYOutH.into()).await?,
             self.read(Register::AccelYOutL.into()).await?,
         ]);
 
-        let acc_z = u16::from_be_bytes([
+        let acc_z = i16::from_be_bytes([
             self.read(Register::AccelZOutH.into()).await?,
             self.read(Register::AccelZOutL.into()).await?,
         ]);
@@ -150,18 +156,18 @@ impl Mpu6050 {
     /// # Errors
     /// - I2C errors.
     /// - Timeout.
-    pub async fn read_gyr(&mut self) -> Result<(u16, u16, u16)> {
-        let gyr_x = u16::from_be_bytes([
+    pub async fn read_gyr(&mut self) -> Result<(i16, i16, i16)> {
+        let gyr_x = i16::from_be_bytes([
             self.read(Register::GyroXOutH.into()).await?,
             self.read(Register::GyroXOutL.into()).await?,
         ]);
 
-        let gyr_y = u16::from_be_bytes([
+        let gyr_y = i16::from_be_bytes([
             self.read(Register::GyroYOutH.into()).await?,
             self.read(Register::GyroYOutL.into()).await?,
         ]);
 
-        let gyr_z = u16::from_be_bytes([
+        let gyr_z = i16::from_be_bytes([
             self.read(Register::GyroZOutH.into()).await?,
             self.read(Register::GyroZOutL.into()).await?,
         ]);
@@ -183,15 +189,15 @@ impl Mpu6050 {
         let (gyr_x, gyr_y, gyr_z) = self.read_gyr().await?;
 
         let acc = Imu3Acc {
-            acc_x: F32::new(f32::from(acc_x)),
-            acc_y: F32::new(f32::from(acc_y)),
-            acc_z: F32::new(f32::from(acc_z)),
+            acc_x: F32::new(f32::from(acc_x) / ACCEL_LSB_SENS),
+            acc_y: F32::new(f32::from(acc_y) / ACCEL_LSB_SENS),
+            acc_z: F32::new(f32::from(acc_z) / ACCEL_LSB_SENS),
         };
 
         let gyr = Imu3Gyr {
-            gyr_x: F32::new(f32::from(gyr_x)),
-            gyr_y: F32::new(f32::from(gyr_y)),
-            gyr_z: F32::new(f32::from(gyr_z)),
+            gyr_x: F32::new(f32::from(gyr_x) / GYRO_LSB_SENS),
+            gyr_y: F32::new(f32::from(gyr_y) / GYRO_LSB_SENS),
+            gyr_z: F32::new(f32::from(gyr_z) / GYRO_LSB_SENS),
         };
 
         Ok(Imu6 { acc, gyr })
