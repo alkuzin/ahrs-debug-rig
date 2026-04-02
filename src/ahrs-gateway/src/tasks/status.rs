@@ -3,7 +3,7 @@
 
 //! AHRS gateway firmware status related declarations.
 
-use crate::{types::SystemStatus, hal::StatusLed};
+use crate::{hal::StatusLed, types::SystemStatus};
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex,
 };

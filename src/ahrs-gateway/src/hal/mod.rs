@@ -7,8 +7,8 @@ mod led;
 
 use alloc::string::ToString;
 use embassy_executor::Spawner;
+use embassy_net::{Runner, Stack, StackResources};
 use embassy_time::Timer;
-pub use led::StatusLed;
 use esp_hal::{
     Blocking,
     dma::DmaRxBuf,
@@ -21,12 +21,12 @@ use esp_hal::{
     },
     timer::timg::TimerGroup,
 };
-use esp_radio::{
-    wifi::{ClientConfig, Config, ModeConfig, WifiController, WifiDevice},
-    Controller
-};
-use embassy_net::{Runner, Stack, StackResources};
 use esp_println::println;
+use esp_radio::{
+    Controller,
+    wifi::{ClientConfig, Config, ModeConfig, WifiController, WifiDevice},
+};
+pub use led::StatusLed;
 use static_cell::StaticCell;
 
 /// Alias for SPI driver.
@@ -70,7 +70,10 @@ impl SystemPeripherals {
         let (stack, controller) = Self::init_network_stack(spawner);
         spawner.spawn(connection_task(controller)).unwrap();
 
-        Self { host, net_stack: stack }
+        Self {
+            host,
+            net_stack: stack,
+        }
     }
 
     /// Initialize the system.
@@ -132,7 +135,9 @@ impl SystemPeripherals {
     ///
     /// # Returns
     /// - Network stack handler & Wi-Fi controller.
-    fn init_network_stack(spawner: &Spawner) -> (Stack<'static>, WifiController<'static>) {
+    fn init_network_stack(
+        spawner: &Spawner,
+    ) -> (Stack<'static>, WifiController<'static>) {
         static STACK: StaticCell<Stack<'static>> = StaticCell::new();
         static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
         static RADIO_INIT: StaticCell<Controller<'static>> = StaticCell::new();
@@ -180,7 +185,9 @@ async fn connection_task(mut controller: WifiController<'static>) {
         .with_ssid(crate::WIFI_SSID.to_string())
         .with_password(crate::WIFI_PASSWORD.to_string());
 
-    controller.set_config(&ModeConfig::Client(sta_config)).unwrap();
+    controller
+        .set_config(&ModeConfig::Client(sta_config))
+        .unwrap();
     controller.start().expect("WiFi start failed");
 
     loop {

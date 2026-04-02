@@ -20,19 +20,19 @@
 extern crate alloc;
 
 pub mod hal;
-pub mod types;
 mod tasks;
+pub mod types;
 
-use alloc::string::ToString;
 use crate::{
     hal::SystemPeripherals,
     tasks::{
-        status::{system_status_task, set_system_status},
         recv::frame_acquisition_task,
-        transfer::transfer_data_task
+        status::{set_system_status, system_status_task},
+        transfer::transfer_data_task,
     },
-    types::SystemStatus
+    types::SystemStatus,
 };
+use alloc::string::ToString;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Ticker, Timer};
 use esp_hal::clock::CpuClock;
@@ -53,7 +53,11 @@ async fn main(spawner: Spawner) -> ! {
     let ticker = Ticker::every(Duration::from_millis(10));
 
     let _ = spawner.spawn(system_status_task(sp.host.status_led, ticker));
-    let _ = spawner.spawn(frame_acquisition_task(sp.host.spi, sp.host.dma_rx_buf, sp.host.esp_ready));
+    let _ = spawner.spawn(frame_acquisition_task(
+        sp.host.spi,
+        sp.host.dma_rx_buf,
+        sp.host.esp_ready,
+    ));
     let _ = spawner.spawn(transfer_data_task(sp.net_stack));
 
     loop {

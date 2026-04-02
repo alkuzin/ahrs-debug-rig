@@ -4,9 +4,9 @@
 //! Frame acquisition task related declarations.
 
 use crate::{
+    hal::{DMA_BUFFER_SIZE, SpiDriver},
     tasks::status::set_system_status,
-    types::{SystemStatus, FrameChannel, FrameMessage},
-    hal::{SpiDriver, DMA_BUFFER_SIZE},
+    types::{FrameChannel, FrameMessage, SystemStatus},
 };
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
@@ -39,12 +39,10 @@ pub async fn frame_acquisition_task(
 
         let transfer = match spi.read(DMA_BUFFER_SIZE, dma_rx_buf) {
             Ok(res) => res,
-            Err(_) => {
-                loop {
-                    set_system_status(SystemStatus::Error).await;
-                    Timer::after(Duration::from_millis(100)).await;
-                    set_system_status(SystemStatus::Idle).await;
-                }
+            Err(_) => loop {
+                set_system_status(SystemStatus::Error).await;
+                Timer::after(Duration::from_millis(100)).await;
+                set_system_status(SystemStatus::Idle).await;
             },
         };
 

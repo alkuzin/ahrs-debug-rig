@@ -3,7 +3,11 @@
 
 //! ESP32 firmware build related declarations.
 
-use std::{env, fs, process, path::{Path, PathBuf}};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+    process,
+};
 
 /// Path for generated firmware configs.
 const FIRMWARE_DIR: &str = "../configs/firmware";

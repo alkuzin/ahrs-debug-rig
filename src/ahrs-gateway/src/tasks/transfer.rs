@@ -3,16 +3,18 @@
 
 //! Frame transfer over WiFi task related declarations.
 
+use crate::{
+    hal::DMA_BUFFER_SIZE,
+    tasks::{recv::get_frame_message, status::set_system_status},
+    types::{self, Error, FrameMessage, SystemStatus},
+};
 use core::str::FromStr;
 use embassy_net::{Stack, udp::UdpSocket};
-use crate::{
-    tasks::{status::set_system_status, recv::get_frame_message},
-    types::{self, FrameMessage, SystemStatus, Error},
-    hal::DMA_BUFFER_SIZE,
-};
 use indtp::{
     Frame,
-    engines::{SwCryptoEngine, SwIntegrityEngine, CryptographyEngine, IntegrityEngine},
+    engines::{
+        CryptographyEngine, IntegrityEngine, SwCryptoEngine, SwIntegrityEngine,
+    },
     types::CryptoKeys,
 };
 use smoltcp::wire::{IpAddress, IpEndpoint};
@@ -48,7 +50,11 @@ pub async fn transfer_data_task(net_stack: Stack<'static>) {
     loop {
         let msg = get_frame_message().await;
 
-        if let Err(_) = transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(msg, &socket, endpoint).await {
+        if let Err(_) = transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(
+            msg, &socket, endpoint,
+        )
+        .await
+        {
             set_system_status(SystemStatus::Error).await;
         }
     }
@@ -70,7 +76,11 @@ pub async fn transfer_data_task(net_stack: Stack<'static>) {
 /// - Buffer overflow.
 /// - Parse errors.
 /// - Invalid operation.
-async fn transfer_frame<I, C>(mut msg: FrameMessage, socket: &UdpSocket<'_>, endpoint: IpEndpoint) -> types::Result<()>
+async fn transfer_frame<I, C>(
+    mut msg: FrameMessage,
+    socket: &UdpSocket<'_>,
+    endpoint: IpEndpoint,
+) -> types::Result<()>
 where
     I: IntegrityEngine,
     C: CryptographyEngine,

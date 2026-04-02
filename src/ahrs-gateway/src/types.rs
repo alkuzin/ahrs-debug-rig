@@ -3,13 +3,15 @@
 
 //! Common types declarations.
 
+use crate::hal::DMA_BUFFER_SIZE;
 use core::{
     error,
     fmt::{Display, Formatter},
     result,
 };
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel};
-use crate::hal::DMA_BUFFER_SIZE;
+use embassy_sync::{
+    blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel,
+};
 
 /// System status levels.
 #[derive(Copy, Clone)]
