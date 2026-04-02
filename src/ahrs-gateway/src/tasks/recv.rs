@@ -31,10 +31,12 @@ pub async fn get_frame_message() -> FrameMessage {
 pub async fn frame_acquisition_task(
     mut spi: SpiDriver<'static>,
     mut dma_rx_buf: DmaRxBuf,
-    mut esp_ready: Output<'static>
+    mut esp_ready: Output<'static>,
 ) {
     loop {
         esp_ready.set_high();
+        dma_rx_buf.as_mut_slice().fill(0);
+
         let transfer = match spi.read(DMA_BUFFER_SIZE, dma_rx_buf) {
             Ok(res) => res,
             Err(_) => {
