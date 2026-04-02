@@ -17,10 +17,13 @@
     missing_docs
 )]
 
+extern crate alloc;
+
 pub mod hal;
 pub mod types;
 mod tasks;
 
+use alloc::string::ToString;
 use crate::{
     hal::SystemPeripherals,
     tasks::{
@@ -33,7 +36,8 @@ use crate::{
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Ticker, Timer};
 use esp_hal::clock::CpuClock;
-use panic_halt as _;
+use esp_println::println;
+// use panic_halt as _;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -44,13 +48,13 @@ include!(concat!(env!("OUT_DIR"), "/esp32_config.rs"));
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let sp = SystemPeripherals::new(esp_hal::init(config)).await;
+    let sp = SystemPeripherals::new(esp_hal::init(config), &spawner).await;
 
     let ticker = Ticker::every(Duration::from_millis(10));
 
-    let _ = spawner.spawn(system_status_task(sp.status_led, ticker));
-    let _ = spawner.spawn(frame_acquisition_task(sp.spi, sp.dma_rx_buf, sp.esp_ready));
-    let _ = spawner.spawn(transfer_data_task());
+    let _ = spawner.spawn(system_status_task(sp.host.status_led, ticker));
+    let _ = spawner.spawn(frame_acquisition_task(sp.host.spi, sp.host.dma_rx_buf, sp.host.esp_ready));
+    let _ = spawner.spawn(transfer_data_task(sp.net_stack));
 
     loop {
         set_system_status(SystemStatus::Idle).await;
@@ -59,4 +63,14 @@ async fn main(spawner: Spawner) -> ! {
         set_system_status(SystemStatus::Error).await;
         Timer::after(Duration::from_millis(500)).await;
     }
+}
+
+/// System panic handler.
+///
+/// # Parameters
+/// - `info` - given information about a panic to handle.
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    println!("[PANIC] {}", info.to_string());
+    loop {}
 }

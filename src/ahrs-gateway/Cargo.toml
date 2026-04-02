@@ -24,9 +24,6 @@ esp-rtos = { version = "0.2.0", features = [
   "esp-radio",
   "esp32",
 ] }
-# Panic handler: panics will make probe-run print a backtrace and exit with
-# a non-zero status code, indicating failure
-panic-halt = "1.0.0"
 # A library that provides print!, println!, dbg! implementations and logging
 # capabilities for Espressif devices.
 esp-println = { version = "0.16.1", features = ["esp32", "log-04"] }
