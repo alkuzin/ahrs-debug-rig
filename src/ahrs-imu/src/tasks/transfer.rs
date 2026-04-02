@@ -55,7 +55,8 @@ struct AlignedBuffer<T>(pub T);
 const DMA_BUFFER_SIZE: usize = 56;
 
 /// Static DMA buffer.
-static mut DMA_BUFFER: AlignedBuffer<[u8; DMA_BUFFER_SIZE]> = AlignedBuffer([0u8; DMA_BUFFER_SIZE]);
+static mut DMA_BUFFER: AlignedBuffer<[u8; DMA_BUFFER_SIZE]> =
+    AlignedBuffer([0u8; DMA_BUFFER_SIZE]);
 
 /// Task for handling IMU data transfer.
 ///
@@ -79,12 +80,15 @@ pub async fn transfer_data_task(
                 spi_ss.set_low();
                 Timer::after(Duration::from_micros(1)).await;
 
-                match with_timeout(SPI_TIMEOUT, spi.write(&buffer[..size])).await {
+                #[allow(clippy::indexing_slicing)]
+                match with_timeout(SPI_TIMEOUT, spi.write(&buffer[..size]))
+                    .await
+                {
                     Ok(Ok(())) => {
                         // Guard interval.
                         Timer::after(Duration::from_micros(20)).await;
                         set_system_status(SystemStatus::Ok).await
-                    },
+                    }
                     _ => set_system_status(SystemStatus::Warning).await,
                 }
             } else {
@@ -92,7 +96,6 @@ pub async fn transfer_data_task(
             }
 
             spi_ss.set_high();
-
         } else {
             Timer::after(IDLE_WAIT).await;
         }
