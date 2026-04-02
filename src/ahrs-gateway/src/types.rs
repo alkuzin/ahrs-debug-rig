@@ -29,7 +29,11 @@ pub enum Error {
     /// Async operation timeout.
     Timeout,
     /// INDTP protocol error.
-    ProtocolError,
+    ProtocolError(indtp::Error),
+    /// Network error.
+    NetworkError,
+    /// Other errors.
+    Other,
 }
 
 impl Display for Error {
@@ -40,12 +44,18 @@ impl Display for Error {
 
 impl error::Error for Error {}
 
+impl From<core::fmt::Error> for Error {
+    fn from(_: core::fmt::Error) -> Self {
+        Error::Other
+    }
+}
+
 /// Result alias.
 pub type Result<T> = result::Result<T, Error>;
 
 impl From<indtp::Error> for Error {
-    fn from(_: indtp::Error) -> Self {
-        Error::ProtocolError
+    fn from(error: indtp::Error) -> Self {
+        Error::ProtocolError(error)
     }
 }
 
