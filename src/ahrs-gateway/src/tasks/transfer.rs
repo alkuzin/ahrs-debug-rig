@@ -100,6 +100,7 @@ where
         )?;
 
         frame.set_batch(false);
+        frame.set_sequence(received_frame.header().sequence.get());
         frame.push_single_sample(timestamp, sample)?;
         frame.set_encrypted(crate::USE_ENCRYPTION);
         frame.encrypt::<C>(&keys)?;
