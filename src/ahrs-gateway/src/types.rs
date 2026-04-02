@@ -12,6 +12,7 @@ use core::{
 use embassy_sync::{
     blocking_mutex::raw::CriticalSectionRawMutex, channel::Channel,
 };
+use esp_radio::wifi;
 
 /// System status levels.
 #[derive(Copy, Clone)]
@@ -25,7 +26,7 @@ pub enum SystemStatus {
 }
 
 /// System errors enumeration.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
     /// Async operation timeout.
@@ -34,6 +35,8 @@ pub enum Error {
     ProtocolError(indtp::Error),
     /// Network error.
     NetworkError,
+    /// Wi-Fi error.
+    WiFiError(wifi::WifiError),
     /// Other errors.
     Other,
 }
@@ -61,6 +64,12 @@ impl From<indtp::Error> for Error {
     }
 }
 
+impl From<wifi::WifiError> for Error {
+    fn from(value: wifi::WifiError) -> Self {
+        Error::WiFiError(value)
+    }
+}
+
 /// Data frame message.
 pub struct FrameMessage {
     /// Frame bytes.
@@ -75,6 +84,7 @@ impl FrameMessage {
     ///
     /// # Returns
     /// - New frame message.
+    #[allow(clippy::indexing_slicing)]
     pub fn new(buffer: &[u8]) -> Self {
         let mut data = [0u8; DMA_BUFFER_SIZE];
         let size = data.len().min(DMA_BUFFER_SIZE);

@@ -4,6 +4,7 @@
 //! Frame transfer over WiFi task related declarations.
 
 use crate::{
+    error,
     hal::DMA_BUFFER_SIZE,
     tasks::{recv::get_frame_message, status::set_system_status},
     types::{self, Error, FrameMessage, SystemStatus},
@@ -42,18 +43,18 @@ pub async fn transfer_data_task(net_stack: Stack<'static>) {
         .unwrap_or(IpAddress::v4(0, 0, 0, 0));
     let endpoint = IpEndpoint::new(monitor_ip, crate::MONITOR_PORT);
 
-    if let Err(e) = socket.bind(0) {
-        set_system_status(SystemStatus::Error).await;
-        panic!("failed to bind socket: {:?}", e);
+    if socket.bind(0).is_err() {
+        error("failed to bind socket: {:?}", Error::NetworkError).await;
     }
 
     loop {
         let msg = get_frame_message().await;
 
-        if let Err(_) = transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(
+        if transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(
             msg, &socket, endpoint,
         )
         .await
+        .is_err()
         {
             set_system_status(SystemStatus::Error).await;
         }
@@ -105,7 +106,7 @@ where
         let _ = frame.pack::<I, C>(Some(&keys))?;
         let frame_to_send = frame.frame()?;
 
-        if let Err(_) = socket.send_to(frame_to_send, endpoint).await {
+        if socket.send_to(frame_to_send, endpoint).await.is_err() {
             return Err(Error::NetworkError);
         }
     }

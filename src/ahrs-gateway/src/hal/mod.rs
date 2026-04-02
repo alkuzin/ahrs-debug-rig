@@ -5,6 +5,10 @@
 
 mod led;
 
+use crate::{
+    error,
+    types::{self, Error},
+};
 use alloc::string::ToString;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
@@ -62,18 +66,27 @@ impl SystemPeripherals {
     /// - `p` - given STM32 peripherals to handle.
     ///
     /// # Returns
-    /// - Initialize IMU handler system peripherals.
-    pub async fn new(p: Peripherals, spawner: &Spawner) -> Self {
+    /// - Initialize IMU handler system peripherals - in case of success.
+    /// - `Err` - otherwise.
+    ///
+    /// # Errors
+    /// - Task spawn error.
+    /// - DMA buffer initialization error.
+    /// - Wi-Fi initialization errors.
+    /// - Network errors.
+    pub async fn new(p: Peripherals, spawner: &Spawner) -> types::Result<Self> {
         Self::init_system();
-        let host = Self::init_host_interface(p).await;
+        let host = Self::init_host_interface(p).await?;
 
-        let (stack, controller) = Self::init_network_stack(spawner);
-        spawner.spawn(connection_task(controller)).unwrap();
+        let (stack, controller) = Self::init_network_stack(spawner).await?;
+        spawner
+            .spawn(connection_task(controller))
+            .map_err(|_| Error::Other)?;
 
-        Self {
+        Ok(Self {
             host,
             net_stack: stack,
-        }
+        })
     }
 
     /// Initialize the system.
@@ -90,8 +103,14 @@ impl SystemPeripherals {
     /// - `p` - given MCU peripherals to handle.
     ///
     /// # Returns
-    /// - Initialized host interface peripherals.
-    async fn init_host_interface(p: Peripherals) -> HostInterface {
+    /// - Initialized host interface peripherals - in case of success.
+    /// - `Err` - otherwise.
+    ///
+    /// # Errors
+    /// - DMA buffer initialization error.
+    async fn init_host_interface(
+        p: Peripherals,
+    ) -> types::Result<HostInterface> {
         let config = OutputConfig::default();
 
         let status_led_red = Output::new(p.GPIO4, Level::High, config);
@@ -115,17 +134,18 @@ impl SystemPeripherals {
             .with_cs(spi_ss)
             .with_dma(dma_channel);
 
-        let dma_rx_buf = match DmaRxBuf::new(rx_descriptors, rx_buffer) {
-            Ok(buf) => buf,
-            Err(e) => panic!("Error creating DMA buffer: {:?}", e),
-        };
+        let dma_rx_buf =
+            DmaRxBuf::new(rx_descriptors, rx_buffer).map_err(|_| {
+                println!("Error to set DMA buffer");
+                Error::Other
+            })?;
 
-        HostInterface {
+        Ok(HostInterface {
             status_led,
             esp_ready,
             spi,
             dma_rx_buf,
-        }
+        })
     }
 
     /// Initialize network stack.
@@ -134,35 +154,47 @@ impl SystemPeripherals {
     /// - `spawner` - given task spawner to handle.
     ///
     /// # Returns
-    /// - Network stack handler & Wi-Fi controller.
-    fn init_network_stack(
+    /// - Network stack handler & Wi-Fi controller - in case of success.
+    /// - `Err` - otherwise.
+    ///
+    /// # Errors
+    /// - Wi-Fi initialization errors.
+    /// - Network errors.
+    async fn init_network_stack(
         spawner: &Spawner,
-    ) -> (Stack<'static>, WifiController<'static>) {
+    ) -> types::Result<(Stack<'static>, WifiController<'static>)> {
         static STACK: StaticCell<Stack<'static>> = StaticCell::new();
         static RESOURCES: StaticCell<StackResources<3>> = StaticCell::new();
         static RADIO_INIT: StaticCell<Controller<'static>> = StaticCell::new();
 
-        let radio = esp_radio::init()
-            .expect("Failed to initialize Wi-Fi/BLE controller");
-        let radio_init = RADIO_INIT.init(radio);
+        if let Ok(radio) = esp_radio::init() {
+            let radio_init = RADIO_INIT.init(radio);
+            let wifi = unsafe { Peripherals::steal().WIFI };
 
-        let wifi = unsafe { Peripherals::steal().WIFI };
+            let (controller, interfaces) =
+                esp_radio::wifi::new(radio_init, wifi, Config::default())?;
 
-        let (controller, interfaces) =
-            esp_radio::wifi::new(radio_init, wifi, Config::default())
-                .expect("Failed to initialize Wi-Fi controller");
+            let (stack, runner) = embassy_net::new(
+                interfaces.sta,
+                embassy_net::Config::dhcpv4(Default::default()),
+                RESOURCES.init(StackResources::new()),
+                42,
+            );
 
-        let (stack, runner) = embassy_net::new(
-            interfaces.sta,
-            embassy_net::Config::dhcpv4(Default::default()),
-            RESOURCES.init(StackResources::new()),
-            42,
-        );
+            let stack = STACK.init(stack);
+            if spawner.spawn(net_task(runner)).is_err() {
+                error(
+                    "Error to spawn a network runner task",
+                    Error::NetworkError,
+                )
+                .await;
+            }
 
-        let stack = STACK.init(stack);
-        spawner.spawn(net_task(runner)).unwrap();
-
-        (*stack, controller)
+            Ok((*stack, controller))
+        } else {
+            println!("Failed to initialize Wi-Fi/BLE controller");
+            Err(Error::NetworkError)
+        }
     }
 }
 
@@ -185,14 +217,17 @@ async fn connection_task(mut controller: WifiController<'static>) {
         .with_ssid(crate::WIFI_SSID.to_string())
         .with_password(crate::WIFI_PASSWORD.to_string());
 
-    controller
-        .set_config(&ModeConfig::Client(sta_config))
-        .unwrap();
-    controller.start().expect("WiFi start failed");
+    if let Err(e) = controller.set_config(&ModeConfig::Client(sta_config)) {
+        error("Error to set Wi-Fi config", e.into()).await;
+    }
+
+    if let Err(e) = controller.start() {
+        error("Error to start Wi-Fi", e.into()).await;
+    }
 
     loop {
         if let Err(e) = controller.connect() {
-            println!("WiFi connection error: {:?}", e);
+            error("Error to connect Wi-Fi", e.into()).await;
         }
 
         Timer::after_secs(3).await;

@@ -37,7 +37,6 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Ticker, Timer};
 use esp_hal::clock::CpuClock;
 use esp_println::println;
-// use panic_halt as _;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 esp_bootloader_esp_idf::esp_app_desc!();
@@ -48,17 +47,22 @@ include!(concat!(env!("OUT_DIR"), "/esp32_config.rs"));
 #[esp_rtos::main]
 async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
-    let sp = SystemPeripherals::new(esp_hal::init(config), &spawner).await;
 
-    let ticker = Ticker::every(Duration::from_millis(10));
+    match SystemPeripherals::new(esp_hal::init(config), &spawner).await {
+        Ok(sp) => {
+            let ticker = Ticker::every(Duration::from_millis(10));
 
-    let _ = spawner.spawn(system_status_task(sp.host.status_led, ticker));
-    let _ = spawner.spawn(frame_acquisition_task(
-        sp.host.spi,
-        sp.host.dma_rx_buf,
-        sp.host.esp_ready,
-    ));
-    let _ = spawner.spawn(transfer_data_task(sp.net_stack));
+            let _ =
+                spawner.spawn(system_status_task(sp.host.status_led, ticker));
+            let _ = spawner.spawn(frame_acquisition_task(
+                sp.host.spi,
+                sp.host.dma_rx_buf,
+                sp.host.esp_ready,
+            ));
+            let _ = spawner.spawn(transfer_data_task(sp.net_stack));
+        }
+        Err(e) => error("Error to initialize system peripherals", e).await,
+    }
 
     loop {
         set_system_status(SystemStatus::Idle).await;
@@ -77,4 +81,19 @@ async fn main(spawner: Spawner) -> ! {
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("[PANIC] {}", info.to_string());
     loop {}
+}
+
+/// Handle fatal error.
+///
+/// # Parameters
+/// - `msg` - given error message to print.
+/// - `err` - given error to print.
+pub async fn error(msg: &str, err: types::Error) {
+    println!("[ERROR] {msg} {err}");
+
+    loop {
+        set_system_status(SystemStatus::Idle).await;
+        Timer::after(Duration::from_millis(1000)).await;
+        set_system_status(SystemStatus::Error).await;
+    }
 }
