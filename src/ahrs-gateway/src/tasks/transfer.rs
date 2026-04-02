@@ -11,6 +11,7 @@ use crate::{
 };
 use core::str::FromStr;
 use embassy_net::{Stack, udp::UdpSocket};
+use esp_println::println;
 use indtp::{
     Frame,
     engines::{
@@ -27,9 +28,9 @@ use smoltcp::wire::{IpAddress, IpEndpoint};
 #[embassy_executor::task]
 pub async fn transfer_data_task(net_stack: Stack<'static>) {
     let mut rx_meta = [embassy_net::udp::PacketMetadata::EMPTY; 1];
-    let mut rx_buffer = [0u8; 256]; // 256
+    let mut rx_buffer = [0u8; 256];
     let mut tx_meta = [embassy_net::udp::PacketMetadata::EMPTY; 1];
-    let mut tx_buffer = [0u8; 256]; // 512
+    let mut tx_buffer = [0u8; 256];
 
     let mut socket = UdpSocket::new(
         net_stack,
@@ -100,8 +101,9 @@ where
         )?;
 
         frame.set_batch(false);
-        frame.set_encrypted(true);
         frame.push_single_sample(timestamp, sample)?;
+        frame.set_encrypted(crate::USE_ENCRYPTION);
+        frame.encrypt::<C>(&keys)?;
 
         let _ = frame.pack::<I, C>(Some(&keys))?;
         let frame_to_send = frame.frame()?;
