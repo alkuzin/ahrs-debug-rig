@@ -51,7 +51,9 @@ include!(concat!(env!("OUT_DIR"), "/stm32_config.rs"));
 /// - `spawner` - given tasks spawner to handle.
 #[embassy_executor::main]
 async fn main(spawner: Spawner) -> ! {
-    // Initializing system peripherals.
+    // Delay for firmware programmer.
+    cortex_m::asm::delay(8_000_000);
+
     let p: Peripherals = embassy_stm32::init(Config::default());
     let mut sp = SystemPeripherals::new(p).await;
 
