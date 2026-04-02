@@ -15,7 +15,7 @@ dependencies = [
 
 [[package]]
 name = "ahrs-gateway"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "critical-section",
  "embassy-executor",
@@ -25,6 +25,7 @@ dependencies = [
  "embedded-hal 1.0.0",
  "embedded-io 0.7.1",
  "embedded-io-async 0.7.0",
+ "enumset",
  "esp-alloc",
  "esp-bootloader-esp-idf",
  "esp-hal",

@@ -4,7 +4,7 @@
 # Project package info section.
 [package]
 name         = "ahrs-gateway"
-version      = "0.1.0"
+version      = "1.0.0"
 description  = "Mediator between IMU and AHRS"
 authors      = ["Alexander <alkuzindev@gmail.com>"]
 repository   = "https://github.com/alkuzin/ahrs-debug-rig"
@@ -79,6 +79,8 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 critical-section = "1.2.0"
 # Statically allocated, initialized at runtime cell.
 static_cell = "2.1.1"
+# A library for defining enums that can be used in compact bit sets.
+enumset = "1.1.10"
 # The lightweight, binary application-layer (L7) protocol designed specifically
 # for the Inertial Navigation Systems (INS) and autonomous platforms.
 indtp = { git = "https://github.com/alkuzin/indtp", default-features = true }

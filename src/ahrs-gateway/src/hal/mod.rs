@@ -9,10 +9,10 @@ use crate::{
     error,
     types::{self, Error},
 };
-use alloc::string::ToString;
+use core::str::FromStr;
 use embassy_executor::Spawner;
-use embassy_net::{Runner, Stack, StackResources};
-use embassy_time::Timer;
+use embassy_net::{Ipv4Address, Runner, Stack, StackResources, StaticConfigV4};
+use enumset::enum_set;
 use esp_hal::{
     Blocking,
     dma::DmaRxBuf,
@@ -28,9 +28,13 @@ use esp_hal::{
 use esp_println::println;
 use esp_radio::{
     Controller,
-    wifi::{ClientConfig, Config, ModeConfig, WifiController, WifiDevice},
+    wifi::{
+        AccessPointConfig, AuthMethod, Config, ModeConfig, WifiController,
+        WifiDevice, WifiEvent,
+    },
 };
 pub use led::StatusLed;
+use smoltcp::wire::Ipv4Cidr;
 use static_cell::StaticCell;
 
 /// Alias for SPI driver.
@@ -174,9 +178,18 @@ impl SystemPeripherals {
             let (controller, interfaces) =
                 esp_radio::wifi::new(radio_init, wifi, Config::default())?;
 
+            let ip_addr = Ipv4Address::from_str(crate::IMU_GATEWAY_IP)
+                .unwrap_or(Ipv4Address::UNSPECIFIED);
+
+            let ipv4_config = StaticConfigV4 {
+                address: Ipv4Cidr::new(ip_addr, 24),
+                gateway: None,
+                dns_servers: Default::default(),
+            };
+
             let (stack, runner) = embassy_net::new(
-                interfaces.sta,
-                embassy_net::Config::dhcpv4(Default::default()),
+                interfaces.ap,
+                embassy_net::Config::ipv4_static(ipv4_config),
                 RESOURCES.init(StackResources::new()),
                 42,
             );
@@ -213,11 +226,12 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 /// - `controller` - given Wi-Fi controller to handle.
 #[embassy_executor::task]
 async fn connection_task(mut controller: WifiController<'static>) {
-    let sta_config = ClientConfig::default()
-        .with_ssid(crate::WIFI_SSID.to_string())
-        .with_password(crate::WIFI_PASSWORD.to_string());
+    let ap_config = AccessPointConfig::default()
+        .with_ssid(crate::IMU_GATEWAY_SSID.into())
+        .with_password(crate::IMU_GATEWAY_PASSWORD.into())
+        .with_auth_method(AuthMethod::Wpa2Personal);
 
-    if let Err(e) = controller.set_config(&ModeConfig::Client(sta_config)) {
+    if let Err(e) = controller.set_config(&ModeConfig::AccessPoint(ap_config)) {
         error("Error to set Wi-Fi config", e.into()).await;
     }
 
@@ -225,11 +239,41 @@ async fn connection_task(mut controller: WifiController<'static>) {
         error("Error to start Wi-Fi", e.into()).await;
     }
 
+    println!(
+        "AP started: SSID='{}', IP={}",
+        crate::IMU_GATEWAY_SSID,
+        crate::IMU_GATEWAY_IP
+    );
+
+    let interested_events = enum_set!(
+        WifiEvent::ApStaConnected
+            | WifiEvent::ApStaDisconnected
+            | WifiEvent::ApStart
+            | WifiEvent::ApStop
+    );
+
     loop {
-        if let Err(e) = controller.connect() {
-            error("Error to connect Wi-Fi", e.into()).await;
+        let occurred =
+            controller.wait_for_events(interested_events, true).await;
+
+        if occurred.contains(WifiEvent::ApStaConnected) {
+            println!("Client connected to AP");
         }
 
-        Timer::after_secs(3).await;
+        if occurred.contains(WifiEvent::ApStaDisconnected) {
+            println!("Client disconnected from AP");
+        }
+
+        if occurred.contains(WifiEvent::ApStart) {
+            println!("AP started");
+        }
+
+        if occurred.contains(WifiEvent::ApStop) {
+            println!("AP stopped");
+        }
+
+        if !occurred.is_empty() {
+            println!("Event occurred: {:?}", occurred);
+        }
     }
 }

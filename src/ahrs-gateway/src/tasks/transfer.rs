@@ -11,7 +11,6 @@ use crate::{
 };
 use core::str::FromStr;
 use embassy_net::{Stack, udp::UdpSocket};
-use esp_println::println;
 use indtp::{
     Frame,
     engines::{
