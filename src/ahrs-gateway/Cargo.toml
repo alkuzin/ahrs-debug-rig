@@ -83,7 +83,7 @@ static_cell = "2.1.1"
 enumset = "1.1.10"
 # The lightweight, binary application-layer (L7) protocol designed specifically
 # for the Inertial Navigation Systems (INS) and autonomous platforms.
-indtp = { git = "https://github.com/alkuzin/indtp", default-features = true }
+indtp = { git = "https://github.com/alkuzin/indtp", version = "0.9.4", default-features = true }
 
 # This profile is used during the development phase of project.
 [profile.dev]

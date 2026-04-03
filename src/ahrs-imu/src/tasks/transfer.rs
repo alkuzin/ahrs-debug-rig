@@ -9,7 +9,6 @@ use crate::{
     tasks::{imu::get_imu_sample, status::set_system_status},
     types::SystemStatus,
 };
-use core::sync::atomic::{self, AtomicU32};
 use embassy_stm32::gpio::{Input, Output};
 use embassy_time::{Duration, Timer, with_timeout};
 use indtp::{
@@ -35,24 +34,12 @@ pub const AGGREGATION_TIMEOUT: u32 =
 /// Data aggregation timeout.
 const TIMEOUT: Duration = Duration::from_millis(AGGREGATION_TIMEOUT as u64);
 
-/// Frame sequence number.
-static SEQUENCE: AtomicU32 = AtomicU32::new(0);
-
-/// Get next sequence number.
-///
-/// # Returns
-/// - Next sequence number.
-#[inline]
-fn get_next_sequence() -> u32 {
-    SEQUENCE.fetch_add(1, atomic::Ordering::Relaxed)
-}
-
 /// Aligned buffer for DMA.
 #[repr(align(32))]
 struct AlignedBuffer<T>(pub T);
 
 /// Size of DMA buffer in bytes.
-const DMA_BUFFER_SIZE: usize = 56;
+const DMA_BUFFER_SIZE: usize = 148;
 
 /// Static DMA buffer.
 static mut DMA_BUFFER: AlignedBuffer<[u8; DMA_BUFFER_SIZE]> =
@@ -120,11 +107,17 @@ async fn pack_frame(buffer: &mut [u8]) -> Result<usize> {
     let mut frame =
         Frame::new_lite(buffer, crate::DEVICE_ID, PayloadType::Imu6.into())?;
 
-    frame.set_sequence(get_next_sequence() as u16);
+    frame.set_batch(true);
 
     let collect = async {
-        let sample = get_imu_sample().await;
-        frame.push_single_sample(sample.timestamp, sample.data.to_bytes())?;
+        let mut batch = frame.start_batch()?;
+
+        for _ in 0..AGGREGATION_SIZE {
+            let sample = get_imu_sample().await;
+            batch.push_sample(sample.timestamp, sample.data.to_bytes())?;
+        }
+
+        drop(batch);
         Ok::<(), indtp::Error>(())
     };
 

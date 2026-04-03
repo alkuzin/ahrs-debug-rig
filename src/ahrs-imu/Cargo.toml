@@ -40,7 +40,7 @@ critical-section = "1.2.0"
 defmt = "1.0.1"
 # The lightweight, binary application-layer (L7) protocol designed specifically
 # for the Inertial Navigation Systems (INS) and autonomous platforms.
-indtp = { git = "https://github.com/alkuzin/indtp", default-features = true }
+indtp = { git = "https://github.com/alkuzin/indtp", version = "0.9.4", default-features = true }
 
 # Project building settings during development.
 [profile.dev]

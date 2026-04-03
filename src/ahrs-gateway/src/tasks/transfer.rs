@@ -5,18 +5,16 @@
 
 use crate::{
     error,
-    hal::DMA_BUFFER_SIZE,
     tasks::{recv::get_frame_message, status::set_system_status},
     types::{self, Error, FrameMessage, SystemStatus},
 };
-use core::str::FromStr;
+use core::{str::FromStr, sync::atomic::{self, AtomicU32}};
 use embassy_net::{Stack, udp::UdpSocket};
 use indtp::{
-    Frame,
     engines::{
         CryptographyEngine, IntegrityEngine, SwCryptoEngine, SwIntegrityEngine,
     },
-    types::CryptoKeys,
+    types::CryptoKeys, payload::Imu6, Frame,
 };
 use smoltcp::wire::{IpAddress, IpEndpoint};
 
@@ -61,6 +59,18 @@ pub async fn transfer_data_task(net_stack: Stack<'static>) {
     }
 }
 
+/// Frame sequence number.
+static SEQUENCE: AtomicU32 = AtomicU32::new(0);
+
+/// Get next sequence number.
+///
+/// # Returns
+/// - Next sequence number.
+#[inline]
+fn get_next_sequence() -> u32 {
+    SEQUENCE.fetch_add(1, atomic::Ordering::Relaxed)
+}
+
 /// Repack & transfer frame.
 ///
 /// # Parameters
@@ -90,26 +100,30 @@ where
     let data = msg.data.as_mut_slice();
 
     if let Ok(received_frame) = Frame::parse::<I, C>(data, None) {
-        let (timestamp, sample) = received_frame.read_single_sample()?;
+        let iterator = received_frame.read_batch_samples(size_of::<Imu6>())?;
 
-        let mut buffer = [0u8; DMA_BUFFER_SIZE];
-        let mut frame = Frame::new_trusted(
-            buffer.as_mut_slice(),
-            received_frame.header().device_id,
-            received_frame.header().payload_type,
-        )?;
+        for (_, result) in iterator.enumerate() {
+            let (timestamp, sample) = result?;
 
-        frame.set_batch(false);
-        frame.set_sequence(received_frame.header().sequence.get());
-        frame.push_single_sample(timestamp, sample)?;
-        frame.set_encrypted(crate::USE_ENCRYPTION);
-        frame.encrypt::<C>(&keys)?;
+            let mut buffer = [0u8; 56];
+            let mut frame = Frame::new_trusted(
+                buffer.as_mut_slice(),
+                received_frame.header().device_id,
+                received_frame.header().payload_type,
+            )?;
 
-        let _ = frame.pack::<I, C>(Some(&keys))?;
-        let frame_to_send = frame.frame()?;
+            frame.set_batch(false);
+            frame.set_sequence(get_next_sequence() as u16);
+            frame.push_single_sample(timestamp, sample)?;
+            frame.set_encrypted(crate::USE_ENCRYPTION);
+            frame.encrypt::<C>(&keys)?;
 
-        if socket.send_to(frame_to_send, endpoint).await.is_err() {
-            return Err(Error::NetworkError);
+            let _ = frame.pack::<I, C>(Some(&keys))?;
+            let frame_to_send = frame.frame()?;
+
+            if socket.send_to(frame_to_send, endpoint).await.is_err() {
+                return Err(Error::NetworkError);
+            }
         }
     }
 

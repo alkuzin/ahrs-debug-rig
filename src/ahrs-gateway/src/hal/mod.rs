@@ -41,7 +41,7 @@ use static_cell::StaticCell;
 pub type SpiDriver<'a> = SpiDma<'a, Blocking>;
 
 /// SPI DMA buffer size in bytes.
-pub const DMA_BUFFER_SIZE: usize = 56;
+pub const DMA_BUFFER_SIZE: usize = 148;
 
 /// Host interface peripherals.
 pub struct HostInterface {
