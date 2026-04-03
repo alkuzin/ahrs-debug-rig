@@ -41,7 +41,7 @@ use static_cell::StaticCell;
 pub type SpiDriver<'a> = SpiDma<'a, Blocking>;
 
 /// SPI DMA buffer size in bytes.
-pub const DMA_BUFFER_SIZE: usize = 148;
+pub const DMA_BUFFER_SIZE: usize = 56;
 
 /// Host interface peripherals.
 pub struct HostInterface {
@@ -229,7 +229,8 @@ async fn connection_task(mut controller: WifiController<'static>) {
     let ap_config = AccessPointConfig::default()
         .with_ssid(crate::IMU_GATEWAY_SSID.into())
         .with_password(crate::IMU_GATEWAY_PASSWORD.into())
-        .with_auth_method(AuthMethod::Wpa2Personal);
+        .with_auth_method(AuthMethod::Wpa2Personal)
+        .with_channel(6);
 
     if let Err(e) = controller.set_config(&ModeConfig::AccessPoint(ap_config)) {
         error("Error to set Wi-Fi config", e.into()).await;

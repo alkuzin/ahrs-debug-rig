@@ -9,6 +9,7 @@ use crate::{
     tasks::{imu::get_imu_sample, status::set_system_status},
     types::SystemStatus,
 };
+use core::sync::atomic::{self, AtomicU32};
 use embassy_stm32::gpio::{Input, Output};
 use embassy_time::{Duration, Timer, with_timeout};
 use indtp::{
@@ -18,28 +19,18 @@ use indtp::{
     types::Packable,
 };
 
-/// SPI timeout in ms.
-const SPI_TIMEOUT: Duration = Duration::from_millis(50);
-
 /// Idle timeout in ms.
 const IDLE_WAIT: Duration = Duration::from_millis(2);
 
-/// Number of samples per frame.
-const AGGREGATION_SIZE: usize = 5;
-
-/// Data aggregation timeout in ms.
-pub const AGGREGATION_TIMEOUT: u32 =
-    (AGGREGATION_SIZE as u32 * 1000 / crate::SAMPLE_RATE_HZ as u32) + 20;
-
 /// Data aggregation timeout.
-const TIMEOUT: Duration = Duration::from_millis(AGGREGATION_TIMEOUT as u64);
+const TIMEOUT: Duration = Duration::from_millis(3);
 
 /// Aligned buffer for DMA.
 #[repr(align(32))]
 struct AlignedBuffer<T>(pub T);
 
 /// Size of DMA buffer in bytes.
-const DMA_BUFFER_SIZE: usize = 148;
+const DMA_BUFFER_SIZE: usize = 56;
 
 /// Static DMA buffer.
 static mut DMA_BUFFER: AlignedBuffer<[u8; DMA_BUFFER_SIZE]> =
@@ -68,10 +59,8 @@ pub async fn transfer_data_task(
                 Timer::after(Duration::from_micros(1)).await;
 
                 #[allow(clippy::indexing_slicing)]
-                match with_timeout(SPI_TIMEOUT, spi.write(&buffer[..size]))
-                    .await
-                {
-                    Ok(Ok(())) => {
+                match spi.write(&buffer[..size]).await {
+                    Ok(()) => {
                         // Guard interval.
                         Timer::after(Duration::from_micros(20)).await;
                         set_system_status(SystemStatus::Ok).await
@@ -87,6 +76,18 @@ pub async fn transfer_data_task(
             Timer::after(IDLE_WAIT).await;
         }
     }
+}
+
+/// Frame sequence number.
+static SEQUENCE: AtomicU32 = AtomicU32::new(0);
+
+/// Get next sequence number.
+///
+/// # Returns
+/// - Next sequence number.
+#[inline]
+fn get_next_sequence() -> u32 {
+    SEQUENCE.fetch_add(1, atomic::Ordering::Relaxed)
 }
 
 /// Pack frame before transfer.
@@ -107,17 +108,11 @@ async fn pack_frame(buffer: &mut [u8]) -> Result<usize> {
     let mut frame =
         Frame::new_lite(buffer, crate::DEVICE_ID, PayloadType::Imu6.into())?;
 
-    frame.set_batch(true);
+    frame.set_sequence(get_next_sequence() as u16);
 
     let collect = async {
-        let mut batch = frame.start_batch()?;
-
-        for _ in 0..AGGREGATION_SIZE {
-            let sample = get_imu_sample().await;
-            batch.push_sample(sample.timestamp, sample.data.to_bytes())?;
-        }
-
-        drop(batch);
+        let sample = get_imu_sample().await;
+        frame.push_single_sample(sample.timestamp, sample.data.to_bytes())?;
         Ok::<(), indtp::Error>(())
     };
 

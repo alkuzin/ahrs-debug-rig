@@ -5,16 +5,18 @@
 
 use crate::{
     error,
+    hal::DMA_BUFFER_SIZE,
     tasks::{recv::get_frame_message, status::set_system_status},
-    types::{self, Error, FrameMessage, SystemStatus},
+    types::{self, Error, SystemStatus},
 };
-use core::{str::FromStr, sync::atomic::{self, AtomicU32}};
+use core::str::FromStr;
 use embassy_net::{Stack, udp::UdpSocket};
 use indtp::{
+    Frame,
     engines::{
         CryptographyEngine, IntegrityEngine, SwCryptoEngine, SwIntegrityEngine,
     },
-    types::CryptoKeys, payload::Imu6, Frame,
+    types::CryptoKeys,
 };
 use smoltcp::wire::{IpAddress, IpEndpoint};
 
@@ -45,11 +47,14 @@ pub async fn transfer_data_task(net_stack: Stack<'static>) {
         error("failed to bind socket: {:?}", Error::NetworkError).await;
     }
 
+    let keys = CryptoKeys::new(*crate::AES_KEY, *crate::HMAC_KEY);
+
     loop {
-        let msg = get_frame_message().await;
+        let mut msg = get_frame_message().await;
+        let data = msg.data.as_mut_slice();
 
         if transfer_frame::<SwIntegrityEngine, SwCryptoEngine>(
-            msg, &socket, endpoint,
+            data, &keys, &socket, endpoint,
         )
         .await
         .is_err()
@@ -59,22 +64,11 @@ pub async fn transfer_data_task(net_stack: Stack<'static>) {
     }
 }
 
-/// Frame sequence number.
-static SEQUENCE: AtomicU32 = AtomicU32::new(0);
-
-/// Get next sequence number.
-///
-/// # Returns
-/// - Next sequence number.
-#[inline]
-fn get_next_sequence() -> u32 {
-    SEQUENCE.fetch_add(1, atomic::Ordering::Relaxed)
-}
-
 /// Repack & transfer frame.
 ///
 /// # Parameters
-/// - `msg` - given frame message to handle.
+/// - `data` - given raw frame data to handle.
+/// - `keys` - given keys for cryptography.
 /// - `socket` - given UDP socket to handle.
 /// - `endpoint` - given AHRS Monitor endpoint.
 ///
@@ -88,7 +82,8 @@ fn get_next_sequence() -> u32 {
 /// - Parse errors.
 /// - Invalid operation.
 async fn transfer_frame<I, C>(
-    mut msg: FrameMessage,
+    data: &mut [u8],
+    keys: &CryptoKeys,
     socket: &UdpSocket<'_>,
     endpoint: IpEndpoint,
 ) -> types::Result<()>
@@ -96,34 +91,25 @@ where
     I: IntegrityEngine,
     C: CryptographyEngine,
 {
-    let keys = CryptoKeys::new(*crate::AES_KEY, *crate::HMAC_KEY);
-    let data = msg.data.as_mut_slice();
-
     if let Ok(received_frame) = Frame::parse::<I, C>(data, None) {
-        let iterator = received_frame.read_batch_samples(size_of::<Imu6>())?;
+        let (timestamp, sample) = received_frame.read_single_sample()?;
 
-        for (_, result) in iterator.enumerate() {
-            let (timestamp, sample) = result?;
+        let mut buffer = [0u8; DMA_BUFFER_SIZE];
+        let mut frame = Frame::new_verified(
+            buffer.as_mut_slice(),
+            received_frame.header().device_id,
+            received_frame.header().payload_type,
+        )?;
 
-            let mut buffer = [0u8; 56];
-            let mut frame = Frame::new_trusted(
-                buffer.as_mut_slice(),
-                received_frame.header().device_id,
-                received_frame.header().payload_type,
-            )?;
+        frame.set_sequence(received_frame.sequence());
+        frame.set_batch(false);
+        frame.push_single_sample(timestamp, sample)?;
 
-            frame.set_batch(false);
-            frame.set_sequence(get_next_sequence() as u16);
-            frame.push_single_sample(timestamp, sample)?;
-            frame.set_encrypted(crate::USE_ENCRYPTION);
-            frame.encrypt::<C>(&keys)?;
+        let _ = frame.pack::<I, C>(Some(keys))?;
+        let frame_to_send = frame.frame()?;
 
-            let _ = frame.pack::<I, C>(Some(&keys))?;
-            let frame_to_send = frame.frame()?;
-
-            if socket.send_to(frame_to_send, endpoint).await.is_err() {
-                return Err(Error::NetworkError);
-            }
+        if socket.send_to(frame_to_send, endpoint).await.is_err() {
+            return Err(Error::NetworkError);
         }
     }
 
