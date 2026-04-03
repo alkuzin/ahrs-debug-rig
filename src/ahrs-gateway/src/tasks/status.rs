@@ -50,9 +50,9 @@ pub async fn system_status_task(
 
         match status {
             // Green color.
-            SystemStatus::WiFiEnabled => led.set_state(true, false),
+            SystemStatus::WiFiEnabled => led.set_state(false, true),
             // Red color.
-            SystemStatus::Error => led.set_state(false, true),
+            SystemStatus::Error => led.set_state(true, false),
             // None.
             SystemStatus::Idle => led.set_state(false, false),
         }

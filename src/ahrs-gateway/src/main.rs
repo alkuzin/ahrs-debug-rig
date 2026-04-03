@@ -68,7 +68,7 @@ async fn main(spawner: Spawner) -> ! {
         set_system_status(SystemStatus::Idle).await;
         Timer::after(Duration::from_millis(1000)).await;
 
-        set_system_status(SystemStatus::Error).await;
+        set_system_status(SystemStatus::WiFiEnabled).await;
         Timer::after(Duration::from_millis(500)).await;
     }
 }
