@@ -55,6 +55,18 @@ const ACCEL_LSB_SENS: f32 = 16384.0;
 /// Gyroscope LSB sensitivity (+-2000 deg/s).
 const GYRO_LSB_SENS: f32 = 16.4;
 
+/// Gravity of Earth (in m/s^2).
+const EARTH_GRAVITY: f32 = 9.80665;
+
+/// Degrees to radians.
+const DEG_TO_RAD: f32 = 0.01745329;
+
+/// Scale for accelerometer readings.
+const ACC_SCALE: f32 = EARTH_GRAVITY / ACCEL_LSB_SENS;
+
+/// Scale for gyroscope readings.
+const GYRO_SCALE: f32 = DEG_TO_RAD / GYRO_LSB_SENS;
+
 impl From<Register> for u8 {
     fn from(val: Register) -> Self {
         val as Self
@@ -189,15 +201,15 @@ impl Mpu6050 {
         let (gyr_x, gyr_y, gyr_z) = self.read_gyr().await?;
 
         let acc = Imu3Acc {
-            acc_x: F32::new(f32::from(acc_x) / ACCEL_LSB_SENS),
-            acc_y: F32::new(f32::from(acc_y) / ACCEL_LSB_SENS),
-            acc_z: F32::new(f32::from(acc_z) / ACCEL_LSB_SENS),
+            acc_x: F32::new(f32::from(acc_x) * ACC_SCALE),
+            acc_y: F32::new(f32::from(acc_y) * ACC_SCALE),
+            acc_z: F32::new(f32::from(acc_z) * ACC_SCALE),
         };
 
         let gyr = Imu3Gyr {
-            gyr_x: F32::new(f32::from(gyr_x) / GYRO_LSB_SENS),
-            gyr_y: F32::new(f32::from(gyr_y) / GYRO_LSB_SENS),
-            gyr_z: F32::new(f32::from(gyr_z) / GYRO_LSB_SENS),
+            gyr_x: F32::new(f32::from(gyr_x) * GYRO_SCALE),
+            gyr_y: F32::new(f32::from(gyr_y) * GYRO_SCALE),
+            gyr_z: F32::new(f32::from(gyr_z) * GYRO_SCALE),
         };
 
         Ok(Imu6 { acc, gyr })
